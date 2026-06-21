@@ -139,9 +139,9 @@ Sprint 11 ✅ Backend Integration
 
 Sprint 12 ⏳ SQL Validation
 
-Sprint 13 ⏳ Frontend Integration
+Sprint 13 ✅ Frontend Integration
 
-Sprint 14 ⏳ Dashboard UI
+Sprint 14 ✅ Dashboard UI
 
 ---
 

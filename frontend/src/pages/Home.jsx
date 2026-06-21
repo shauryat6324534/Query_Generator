@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Database, Sparkles, History, Loader2, AlertTriangle } from "lucide-react";
-import QueryInput from "../components/QueryInput";
+import { Sparkles, AlertTriangle } from "lucide-react";
+import Sidebar from "../components/Sidebar";
+import Navbar from "../components/Navbar";
+import QueryInputCard from "../components/QueryInputCard";
 import ResultPanel from "../components/ResultPanel";
-import { generateQuery, explainQuery, analyzeImpact, getHistory, checkBackendHealth } from "../services/api";
+import { generateQuery, explainQuery, analyzeImpact, getHistory, checkBackendHealth, executeQuery, exportCSV } from "../services/api";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
@@ -10,13 +12,19 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // History States
+  // Health and System State
+  const [backendOnline, setBackendOnline] = useState(false);
+
+  // History states
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState(null);
 
-  // System Health Status
-  const [backendOnline, setBackendOnline] = useState(false);
+  // Execution states
+  const [executeLoading, setExecuteLoading] = useState(false);
+  const [executeError, setExecuteError] = useState(null);
+  const [executeResults, setExecuteResults] = useState(null);
+  const [exportLoading, setExportLoading] = useState(false);
 
   const fetchHistoryLogs = async () => {
     setHistoryLoading(true);
@@ -25,7 +33,7 @@ export default function Home() {
       const data = await getHistory();
       setHistory(data);
     } catch (err) {
-      console.error("Failed to load history:", err);
+      console.error("Failed to load history logs:", err);
       setHistoryError("History logs temporarily unavailable.");
     } finally {
       setHistoryLoading(false);
@@ -46,6 +54,12 @@ export default function Home() {
     verifyHealthStatus();
     fetchHistoryLogs();
   }, []);
+
+  // Reset execution states when the query result changes
+  useEffect(() => {
+    setExecuteResults(null);
+    setExecuteError(null);
+  }, [result]);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -85,7 +99,7 @@ export default function Home() {
 
       setResult({ sql, explanation, impact });
 
-      // Refresh history log list
+      // Refresh history list
       fetchHistoryLogs();
     } catch (err) {
       console.error("Error generating query response: ", err);
@@ -135,76 +149,83 @@ export default function Home() {
     }
   };
 
+  const handleExecute = async () => {
+    if (!result?.sql || executeLoading) return;
+    setExecuteLoading(true);
+    setExecuteError(null);
+    try {
+      const data = await executeQuery(result.sql);
+      setExecuteResults(data);
+    } catch (err) {
+      setExecuteError(err.message || "Failed to execute query.");
+    } finally {
+      setExecuteLoading(false);
+    }
+  };
+
+  const handleExportCSV = async () => {
+    if (exportLoading || !executeResults) return;
+    setExportLoading(true);
+    try {
+      const blob = await exportCSV(executeResults);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "query_results.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("CSV Export error:", err);
+      alert(err.message || "Failed to export query results.");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   return (
-    <div className="relative min-h-screen bg-brand-950 flex flex-col justify-between overflow-x-hidden">
-      {/* Dynamic atmospheric radial glows */}
-      <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[50%] rounded-full bg-indigo-500/5 blur-[150px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[50%] rounded-full bg-purple-500/5 blur-[150px] pointer-events-none" />
+    <div className="min-h-screen bg-slate-50 flex text-slate-800 font-sans antialiased overflow-hidden">
+      {/* 1. Left Sidebar Navigation */}
+      <Sidebar
+        history={history}
+        historyLoading={historyLoading}
+        historyError={historyError}
+        backendOnline={backendOnline}
+        onLoadHistoryItem={handleLoadFromHistory}
+      />
 
-      {/* Main Header bar */}
-      <header className="border-b border-slate-900 bg-slate-950/40 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3.5">
-            <div className="p-2.5 bg-indigo-600/20 border border-indigo-500/30 rounded-xl">
-              <Database className="w-5.5 h-5.5 text-indigo-400" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
-                AI SQL Query Generator
-                <span className="text-[10px] font-semibold py-0.5 px-2 bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 rounded-full">
-                  v1.0.0 (API Integrated)
-                </span>
-              </h1>
-              <p className="text-[11px] text-slate-400">Generate, explain, and validate SQL queries instantly</p>
-            </div>
-          </div>
+      {/* 2. Main Content Canvas Area */}
+      <div className="flex-grow flex flex-col h-screen overflow-hidden">
+        {/* Top Navbar */}
+        <Navbar backendOnline={backendOnline} />
 
-          <div className="flex items-center space-x-2">
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase border ${
-              backendOnline 
-                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
-                : "bg-rose-500/10 text-rose-400 border-rose-500/20"
-            }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${backendOnline ? "bg-emerald-400 animate-pulse" : "bg-rose-400"}`} />
-              {backendOnline ? "System Online" : "System Offline"}
-            </span>
-          </div>
-        </div>
-      </header>
-
-      {/* Workspace Area */}
-      <main className="max-w-7xl mx-auto px-6 py-10 flex-grow w-full space-y-8">
-        
-        {/* Banner Section */}
-        <div className="p-6 rounded-2xl border border-indigo-500/10 bg-gradient-to-r from-indigo-950/30 to-purple-950/20 backdrop-blur-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h2 className="text-md font-bold text-white flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-indigo-400" />
-              <span>Interactive SQL Generator Interface</span>
-            </h2>
-            <p className="text-xs text-slate-400 leading-relaxed max-w-2xl">
-              Type natural language questions in the text box below. Our engine generates SQL code, provides comprehensive breakdown steps, and runs query checks safely against the database.
-            </p>
-          </div>
-          
-          {/* Quick Stats */}
-          <div className="flex gap-4 self-start md:self-auto border-t md:border-t-0 md:border-l border-slate-800/80 pt-3 md:pt-0 md:pl-6">
-            <div className="text-left">
-              <span className="text-[10px] text-slate-500 uppercase font-semibold">Active Database</span>
-              <p className="text-xs font-bold text-slate-300 mt-0.5">MySQL Local Pool</p>
+        {/* Scrollable Workspace */}
+        <main className="flex-grow overflow-y-auto p-10 space-y-10 bg-slate-50/50">
+          {/* Welcome Banner Card */}
+          <div className="p-8 rounded-3xl border border-slate-200/50 bg-white shadow-md shadow-slate-200/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1.5">
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-indigo-500 fill-current" />
+                <span>SaaS SQL Workspace Sandbox</span>
+              </h2>
+              <p className="text-sm text-slate-500 max-w-2xl font-semibold leading-relaxed">
+                Type natural language prompts to translate, explain, and validate SQL queries against your database schemas. Use quick examples or logs from the sidebar query records index.
+              </p>
             </div>
-            <div className="text-left">
-              <span className="text-[10px] text-slate-500 uppercase font-semibold">Translator</span>
-              <p className="text-xs font-bold text-indigo-400 mt-0.5">Gemini 3 Flash</p>
+            
+            {/* Context Stats */}
+            <div className="flex gap-4 self-start md:self-auto border-t md:border-t-0 md:border-l border-slate-200 pt-3.5 md:pt-0 md:pl-6">
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Active Connection</span>
+                <p className="text-xs font-semibold text-slate-700 mt-0.5">MySQL Server</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Dashboard Grid split: Input & Results (Left) and History (Right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          {/* Main workspace section */}
-          <div className="lg:col-span-2 space-y-8">
-            <QueryInput
+          {/* Main Grid: Inputs and Generated Views */}
+          <div className="space-y-10 max-w-5xl">
+            <QueryInputCard
               prompt={prompt}
               setPrompt={setPrompt}
               onGenerate={handleGenerate}
@@ -212,85 +233,42 @@ export default function Home() {
             />
 
             {error && (
-              <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-start gap-2.5">
-                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <div className="p-5 bg-rose-50 border border-rose-100 text-rose-800 rounded-3xl text-xs flex items-start gap-2.5 shadow-sm">
+                <AlertTriangle className="w-4.5 h-4.5 text-rose-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold">Generation Failed</p>
-                  <p className="text-[11px] text-rose-300/90 mt-0.5 leading-relaxed">{error}</p>
+                  <p className="font-bold text-rose-900 text-sm">Translation Failed</p>
+                  <p className="text-[12px] text-rose-600 font-semibold mt-0.5 leading-relaxed">{error}</p>
                 </div>
               </div>
             )}
 
-            <div className="space-y-3">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Generated Output Workspace</h3>
-              <ResultPanel result={result} />
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-slate-700 tracking-wide pl-1">Generated Output Workspace</h3>
+              <ResultPanel
+                result={result}
+                onExecute={handleExecute}
+                executeLoading={executeLoading}
+                executeError={executeError}
+                executeResults={executeResults}
+                onExportCSV={handleExportCSV}
+                exportLoading={exportLoading}
+              />
             </div>
           </div>
+        </main>
 
-          {/* Sidebar Section: History Logger */}
-          <div className="lg:col-span-1 space-y-6 bg-slate-900/20 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 shadow-xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                <History className="w-4 h-4 text-indigo-400" />
-                <span>Query History</span>
-              </h3>
-              <span className="text-[10px] font-mono py-0.5 px-2 bg-slate-850 text-slate-400 rounded-full border border-slate-800 flex-shrink-0">
-                {history.length} Logs
-              </span>
+        {/* Workspace Footer */}
+        <footer className="border-t border-slate-200/80 bg-white py-4 text-center text-xs text-slate-500 flex-shrink-0">
+          <div className="max-w-7xl mx-auto px-8 flex flex-col sm:flex-row items-center justify-between gap-2 font-medium">
+            <p>© {new Date().getFullYear()} AI SQL Query Generator. Clean Dashboard Redesign.</p>
+            <div className="flex space-x-4 text-[11px] text-slate-400">
+              <span className="hover:text-slate-600 transition-colors">Sprint 14 Completed</span>
+              <span>•</span>
+              <span className="hover:text-slate-600 transition-colors">Tailwind CSS v3</span>
             </div>
-
-            {historyLoading && history.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 space-y-2">
-                <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
-                <p className="text-[10px] text-slate-500">Loading history records...</p>
-              </div>
-            ) : historyError ? (
-              <div className="text-center py-6 text-xs text-rose-400/90">
-                {historyError}
-              </div>
-            ) : history.length === 0 ? (
-              <div className="text-center py-12 text-xs text-slate-500">
-                No past translations saved yet. Generated queries will log here.
-              </div>
-            ) : (
-              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-                {history.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => handleLoadFromHistory(item)}
-                    className="w-full text-left p-3 bg-slate-950/60 hover:bg-slate-900/40 border border-slate-900/80 hover:border-indigo-500/20 rounded-xl transition-all duration-200 group flex flex-col space-y-2"
-                  >
-                    <div className="flex justify-between items-start w-full gap-2">
-                      <p className="text-[11px] font-medium text-slate-300 line-clamp-2 leading-relaxed group-hover:text-indigo-400 transition-colors">
-                        {item.prompt}
-                      </p>
-                      <span className="text-[9px] text-slate-500 font-mono flex-shrink-0 mt-0.5">
-                        {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                    <pre className="text-[9px] font-mono text-slate-500 line-clamp-1 truncate w-full overflow-hidden select-none bg-slate-950/90 p-1.5 rounded border border-slate-900/50">
-                      {item.sql_query}
-                    </pre>
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
-        </div>
-
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950/60 py-5 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p>© {new Date().getFullYear()} AI SQL Query Generator. Connected to live API endpoints.</p>
-          <div className="flex space-x-5">
-            <span className="hover:text-slate-400 transition-colors">Sprint 13 Live</span>
-            <span>•</span>
-            <span className="hover:text-slate-400 transition-colors">Vite + React + Tailwind</span>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      </div>
     </div>
   );
 }
