@@ -17,20 +17,10 @@ The system must:
 3. Explain SQL.
 4. Show tables involved.
 5. Estimate impact.
-6. Execute selected SQL.
-7. Maintain query history.
-
----
-
-## Golden Rules
-
-1. Do not rewrite working features.
-2. Create new files whenever possible.
-3. Modify only files directly related to the requested task.
-4. Follow existing folder structure.
-5. Keep services independent.
-6. Use clean architecture principles.
-7. Use async/await.
+6. Validate SQL.
+7. Execute selected SQL.
+8. Maintain query history.
+9. Export query results as CSV.
 
 ---
 
@@ -50,7 +40,7 @@ Business logic belongs inside services.
 
 ---
 
-## Service Responsibilities
+## Existing Services
 
 geminiService.js
 
@@ -77,37 +67,81 @@ historyService.js
 
 * Store history
 
----
+exportService.js
 
-## Frontend Architecture
-
-pages
-
-* High-level screens
-
-components
-
-* Reusable UI
-
-services
-
-* API calls
+* Convert query results to CSV
 
 ---
 
-## Environment Variables
+## Current Project Status
 
-GEMINI_API_KEY
+Completed Services
 
-DB_HOST
+✅ geminiService.js
 
-DB_PORT
+✅ schemaService.js
 
-DB_USER
+✅ explanationService.js
 
-DB_PASSWORD
+✅ impactService.js
 
-DB_NAME
+✅ executionService.js
+
+✅ historyService.js
+
+✅ exportService.js
+
+Current Status:
+
+* Services are implemented and tested.
+* Frontend still uses mockData.js.
+* Frontend is not connected to backend APIs.
+* History service is not integrated into generation workflow.
+* CSV export service is not exposed through API routes.
+* SQL validation has not been implemented.
+
+---
+
+## Remaining Work
+
+Sprint 11
+
+Backend Integration
+
+* Connect services through controllers and routes.
+* Expose APIs:
+
+  * POST /generate-query
+  * POST /explain-query
+  * POST /analyze-impact
+  * POST /execute-query
+  * GET /history
+  * POST /export-csv
+* Automatically save history after successful SQL generation.
+
+Sprint 12
+
+SQL Validation
+
+* Create validationService.js
+* Validate SQL before execution.
+* Detect dangerous operations.
+
+Sprint 13
+
+Frontend Integration
+
+* Remove mockData.js dependency.
+* Connect React frontend to backend APIs.
+* Display live results.
+
+Sprint 14
+
+Dashboard UI
+
+* Modern SaaS-style dashboard.
+* TailwindCSS.
+* Responsive layout.
 
 ---
 
@@ -118,40 +152,8 @@ DB_NAME
 * No hardcoded secrets
 * Descriptive naming
 * Modular design
-
----
-
-## Sprint Tracker
-
-Sprint 1
-[ ] Project Setup
-
-Sprint 2
-[ ] Frontend UI
-
-Sprint 3
-[ ] Backend API
-
-Sprint 4
-[ ] Gemini Integration
-
-Sprint 5
-[ ] Schema Reader
-
-Sprint 6
-[ ] Query Explanation
-
-Sprint 7
-[ ] Impact Analysis
-
-Sprint 8
-[ ] Query Execution
-
-Sprint 9
-[ ] Query History
-
-Sprint 10
-[ ] CSV Export
+* Create new files whenever possible
+* Do not modify unrelated modules
 
 ---
 
@@ -162,7 +164,8 @@ Always:
 1. Read README.md
 2. Read PROJECT_CONTEXT.md
 3. Follow existing architecture
-4. Create new files whenever possible
-5. Do not touch unrelated files
-6. Return complete file contents
-7. Explain file changes
+4. Preserve Sprint 1–10 functionality
+5. Create new files whenever possible
+6. Do not touch unrelated files
+7. Return complete file contents
+8. Explain file changes

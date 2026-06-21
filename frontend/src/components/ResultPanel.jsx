@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Copy, 
   Check, 
@@ -8,8 +8,14 @@ import {
   Layers, 
   ArrowRight,
   TrendingUp, 
-  AlertTriangle 
+  AlertTriangle,
+  Play,
+  Download,
+  Table,
+  CheckCircle,
+  Loader2
 } from "lucide-react";
+import { executeQuery, exportCSV } from "../services/api.js";
 
 /**
  * @param {object} props
@@ -25,6 +31,16 @@ import {
  */
 export default function ResultPanel({ result }) {
   const [copied, setCopied] = useState(false);
+  const [executeLoading, setExecuteLoading] = useState(false);
+  const [executeError, setExecuteError] = useState(null);
+  const [executeResults, setExecuteResults] = useState(null);
+  const [exportLoading, setExportLoading] = useState(false);
+
+  // Reset execution states when the query result object changes
+  useEffect(() => {
+    setExecuteResults(null);
+    setExecuteError(null);
+  }, [result]);
 
   if (!result) {
     return (
@@ -49,6 +65,41 @@ export default function ResultPanel({ result }) {
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy text: ", err);
+    }
+  };
+
+  const handleExecute = async () => {
+    if (executeLoading) return;
+    setExecuteLoading(true);
+    setExecuteError(null);
+    try {
+      const data = await executeQuery(result.sql);
+      setExecuteResults(data);
+    } catch (err) {
+      setExecuteError(err.message || "Failed to execute query.");
+    } finally {
+      setExecuteLoading(false);
+    }
+  };
+
+  const handleExportCSV = async () => {
+    if (exportLoading || !executeResults) return;
+    setExportLoading(true);
+    try {
+      const blob = await exportCSV(executeResults);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "query_results.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("CSV Export error:", err);
+      alert(err.message || "Failed to export query results.");
+    } finally {
+      setExportLoading(false);
     }
   };
 
@@ -91,22 +142,42 @@ export default function ResultPanel({ result }) {
             <h3 className="text-sm font-semibold text-slate-200">Generated SQL Statement</h3>
           </div>
           
-          <button
-            onClick={handleCopy}
-            className="flex items-center space-x-1.5 text-xs text-slate-400 hover:text-white bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 py-1.5 px-3 rounded-lg transition-all"
-          >
-            {copied ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400 font-medium">Copied!</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5" />
-                <span>Copy SQL</span>
-              </>
-            )}
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleCopy}
+              className="flex items-center space-x-1.5 text-xs text-slate-400 hover:text-white bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 py-1.5 px-3 rounded-lg transition-all"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-emerald-400 font-medium">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copy SQL</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={handleExecute}
+              disabled={executeLoading}
+              className="flex items-center space-x-1.5 text-xs text-indigo-300 hover:text-white bg-indigo-950/40 hover:bg-indigo-900/60 border border-indigo-800/40 hover:border-indigo-700/60 py-1.5 px-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {executeLoading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Executing...</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-3.5 h-3.5 text-indigo-400 fill-current" />
+                  <span>Execute Query</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         <div className="p-6 bg-slate-950/80 font-mono text-sm leading-relaxed overflow-x-auto">
@@ -242,6 +313,121 @@ export default function ResultPanel({ result }) {
         </div>
 
       </div>
+
+      {/* CARD 4: Query Execution Results */}
+      {(executeResults || executeError || executeLoading) && (
+        <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl">
+          <div className="px-6 py-4 border-b border-slate-800 bg-slate-900/60 flex items-center justify-between">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-1.5 bg-indigo-500/10 rounded-md">
+                <Table className="w-4 h-4 text-indigo-400" />
+              </div>
+              <h3 className="text-sm font-semibold text-slate-200">Query Execution Results</h3>
+            </div>
+
+            {executeResults && Array.isArray(executeResults) && executeResults.length > 0 && (
+              <button
+                onClick={handleExportCSV}
+                disabled={exportLoading}
+                className="flex items-center space-x-1.5 text-xs text-slate-400 hover:text-white bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 py-1.5 px-3 rounded-lg transition-all disabled:opacity-50"
+              >
+                {exportLoading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Download className="w-3.5 h-3.5" />
+                )}
+                <span>Export CSV</span>
+              </button>
+            )}
+          </div>
+
+          <div className="p-6">
+            {executeLoading && (
+              <div className="flex flex-col items-center justify-center py-10 space-y-3">
+                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                <p className="text-xs text-slate-400">Running query against database...</p>
+              </div>
+            )}
+
+            {executeError && (
+              <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-semibold">Execution Failed</p>
+                  <p className="text-[11px] text-rose-300/90 leading-relaxed">{executeError}</p>
+                </div>
+              </div>
+            )}
+
+            {executeResults && !executeLoading && !executeError && (
+              <>
+                {Array.isArray(executeResults) ? (
+                  executeResults.length === 0 ? (
+                    <div className="text-center py-8 text-xs text-slate-500">
+                      Query executed successfully. No rows returned.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto border border-slate-800 rounded-xl">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-slate-950/80 text-slate-400 border-b border-slate-800">
+                            {Object.keys(executeResults[0]).map((key) => (
+                              <th key={key} className="py-3 px-4 font-semibold select-none">
+                                {key}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {executeResults.map((row, rIdx) => (
+                            <tr
+                              key={rIdx}
+                              className="border-b border-slate-900/60 py-2.5 px-4 text-slate-300 hover:bg-slate-900/30 transition-colors"
+                            >
+                              {Object.values(row).map((val, cIdx) => (
+                                <td key={cIdx} className="py-2.5 px-4 font-mono">
+                                  {val === null || val === undefined ? (
+                                    <span className="text-slate-600 font-sans italic">NULL</span>
+                                  ) : typeof val === "object" ? (
+                                    JSON.stringify(val)
+                                  ) : (
+                                    String(val)
+                                  )}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                ) : (
+                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-xs space-y-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4" />
+                      <span className="font-semibold">Query Executed Successfully</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2 text-[11px] text-slate-300">
+                      <div>
+                        <span className="text-slate-500 block">Affected Rows</span>
+                        <span className="font-mono font-bold text-slate-200">{executeResults.affectedRows ?? 0}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block">Changed Rows</span>
+                        <span className="font-mono font-bold text-slate-200">{executeResults.changedRows ?? 0}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block">Warning Status</span>
+                        <span className="font-mono font-bold text-slate-200">{executeResults.warningStatus ?? 0}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );

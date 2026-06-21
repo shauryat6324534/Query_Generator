@@ -1,6 +1,32 @@
 import React from "react";
 import { Sparkles, Loader2, Play } from "lucide-react";
-import { QUICK_EXAMPLES } from "../utils/mockData";
+const QUICK_EXAMPLES = [
+  {
+    id: "salary",
+    label: "Employee Salaries",
+    prompt: "Show all employees whose salary is greater than 50000",
+  },
+  {
+    id: "sales",
+    label: "Product Sales",
+    prompt: "Get the total sales for each product in the last 30 days",
+  },
+  {
+    id: "inactive",
+    label: "Inactive Customers",
+    prompt: "Find customers who registered in 2025 but haven't placed any orders",
+  },
+  {
+    id: "logs",
+    label: "Prune Old Logs",
+    prompt: "Delete all logs older than 6 months",
+  },
+  {
+    id: "departments",
+    label: "Top Departments",
+    prompt: "Calculate the average department rating, group by department name, having average rating > 4.5",
+  }
+];
 
 /**
  * @param {object} props

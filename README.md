@@ -4,7 +4,28 @@
 
 AI SQL Query Generator is a web application that converts natural language requirements into SQL queries.
 
-The system uses Gemini AI to understand user intent, generate SQL statements, explain generated queries, estimate query impact, and execute selected queries against a database.
+The system uses Gemini AI to understand user intent, generate SQL statements, explain generated queries, estimate query impact, execute selected queries, maintain history, and export results.
+
+---
+
+## Current Status
+
+### Completed
+
+* SQL Generation
+* Query Explanation
+* Database Schema Reader
+* Query Impact Analysis
+* Query Execution Service
+* Query History Service
+* CSV Export Service
+
+### In Progress
+
+* Backend API Integration
+* SQL Validation
+* Frontend ↔ Backend Integration
+* Dashboard UI Redesign
 
 ---
 
@@ -14,24 +35,13 @@ The system uses Gemini AI to understand user intent, generate SQL statements, ex
 
 Convert natural language into SQL.
 
-Example:
-
-Input:
-Show all employees whose salary is greater than 50000.
-
-Output:
-
-SELECT *
-FROM Employee
-WHERE Salary > 50000;
-
 ### Query Explanation
 
 Explain generated SQL in simple language.
 
 ### Database Schema Understanding
 
-Read tables and columns from connected database.
+Read tables and columns from the connected database.
 
 ### Query Impact Analysis
 
@@ -41,45 +51,31 @@ Estimate:
 * Rows affected
 * Potential risks
 
-### Query Validation
-
-Validate generated SQL before execution.
-
 ### Query Execution
 
-Execute user-selected SQL queries.
+Execute generated SQL against MySQL.
 
 ### Query History
 
-Store previous prompts and generated SQL.
+Store prompts and generated SQL.
 
 ### CSV Export
 
-Export query results.
+Convert query results into CSV format.
 
----
+### Planned
 
-## Tech Stack
+#### SQL Validation
 
-Frontend:
+Validate generated SQL before execution.
 
-* React
-* Vite
-* TailwindCSS
+#### Frontend API Integration
 
-Backend:
+Connect React frontend with backend services.
 
-* Node.js
-* Express.js
+#### Dashboard UI
 
-Database:
-
-* MySQL
-
-AI:
-
-* Gemini API
-* LangChain
+Modern SaaS-style responsive interface.
 
 ---
 
@@ -91,63 +87,89 @@ Frontend
 ↓
 Backend API
 ↓
-Services Layer
+Controllers
+↓
+Services
 ↓
 Database + Gemini
 
 ---
 
-## Development Approach
+## Backend Services
 
-Build feature-by-feature.
+Implemented:
 
-Every feature must:
+* geminiService.js
+* schemaService.js
+* explanationService.js
+* impactService.js
+* executionService.js
+* historyService.js
+* exportService.js
 
-* Be tested independently.
-* Be committed separately.
-* Not modify unrelated modules.
+Planned:
 
----
-
-## Folder Structure
-
-frontend/
-backend/
-
-backend/src
-
-routes/
-controllers/
-services/
-database/
-
-frontend/src
-
-components/
-pages/
-services/
+* validationService.js
 
 ---
 
-## Setup
+## Sprint Status
 
-Frontend:
+Sprint 1  ✅ Project Setup
 
-npm install
-npm run dev
+Sprint 2  ✅ Frontend UI Prototype
 
-Backend:
+Sprint 3  ✅ Backend API Foundation
 
-npm install
-npm run dev
+Sprint 4  ✅ Gemini Integration
 
-Database:
+Sprint 5  ✅ Schema Reader
 
-MySQL
+Sprint 6  ✅ Query Explanation
+
+Sprint 7  ✅ Impact Analysis
+
+Sprint 8  ✅ Query Execution
+
+Sprint 9  ✅ Query History Service
+
+Sprint 10 ✅ CSV Export Service
+
+Sprint 11 ✅ Backend Integration
+
+Sprint 12 ⏳ SQL Validation
+
+Sprint 13 ⏳ Frontend Integration
+
+Sprint 14 ⏳ Dashboard UI
+
+---
+
+## Tech Stack
+
+Frontend
+
+* React
+* Vite
+* TailwindCSS
+
+Backend
+
+* Node.js
+* Express.js
+
+Database
+
+* MySQL
+
+AI
+
+* Gemini API
 
 ---
 
 ## Authors
 
-B.Tech CSE Project
+B.Tech CSE Major Project
+
 AI SQL Query Generator
