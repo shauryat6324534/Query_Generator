@@ -118,17 +118,17 @@ export default function QueryInput({ prompt, setPrompt, onGenerate, isLoading })
             className={`w-full md:w-auto inline-flex items-center justify-center space-x-2.5 py-3 px-6 rounded-xl font-semibold text-sm transition-all duration-300 ${
               isLoading || !prompt.trim()
                 ? "bg-slate-800/80 text-slate-500 border border-slate-800/40 cursor-not-allowed"
-                : "bg-indigo-600 text-white hover:bg-indigo-500 active:scale-95 hover:shadow-lg hover:shadow-indigo-600/20 border border-indigo-500/20"
+                : "bg-[#2563EB] text-white hover:bg-[#1D4ED8] active:scale-95 hover:shadow-lg hover:shadow-blue-200/80 border border-blue-500/10"
             }`}
           >
             {isLoading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
                 <span>Translating query...</span>
               </>
             ) : (
               <>
-                <Play className="w-4 h-4 text-indigo-300 fill-current" />
+                <Play className="w-4 h-4 text-white fill-current" />
                 <span>Generate SQL</span>
               </>
             )}

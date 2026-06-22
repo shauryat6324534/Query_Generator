@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { retryGemini } from "../utils/retryGemini.js";
 
 /**
  * Service to generate human-readable SQL explanations using Gemini.
@@ -27,7 +28,7 @@ export const explainSQL = async (sql) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     
     const model = genAI.getGenerativeModel({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.0-flash",
       systemInstruction:
         "You are an expert SQL query explanation assistant. " +
         "Analyze the provided SQL query and explain its logic step-by-step in simple, plain English. " +
@@ -42,9 +43,11 @@ export const explainSQL = async (sql) => {
         "Return ONLY the raw JSON text.",
     });
 
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: sql }] }],
-    });
+    const result = await retryGemini(() =>
+      model.generateContent({
+        contents: [{ role: "user", parts: [{ text: sql }] }],
+      })
+    );
 
     const responseText = result.response.text();
     

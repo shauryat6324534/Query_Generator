@@ -29,7 +29,7 @@ export default function ImpactPanel({ impact }) {
   const riskStyle = getRiskColor(impact.riskLevel);
 
   return (
-    <div className="bg-white border border-slate-200/60 rounded-3xl p-8 shadow-md shadow-slate-200/40 space-y-6">
+    <div className="bg-white border border-[#E5E7EB] rounded-3xl p-8 shadow-md shadow-slate-200/40 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2.5">
           <div className="p-1.5 bg-indigo-50 border border-indigo-100 rounded-lg">
@@ -71,7 +71,7 @@ export default function ImpactPanel({ impact }) {
             <span className="text-xs text-slate-450 font-semibold italic pl-1">None</span>
           ) : (
             impact.tables.map((table, tIdx) => (
-              <span key={tIdx} className="text-[10px] font-mono font-bold px-2.5 py-1 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg shadow-sm">
+              <span key={tIdx} className="text-[10px] font-mono font-bold px-2.5 py-1 bg-slate-50 border border-[#E5E7EB] text-slate-600 rounded-lg shadow-sm">
                 {table}
               </span>
             ))

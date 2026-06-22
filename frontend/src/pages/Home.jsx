@@ -203,11 +203,11 @@ export default function Home() {
         {/* Scrollable Workspace */}
         <main className="flex-grow overflow-y-auto p-10 space-y-10 bg-slate-50/50">
           {/* Welcome Banner Card */}
-          <div className="p-8 rounded-3xl border border-slate-200/50 bg-white shadow-md shadow-slate-200/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="p-8 rounded-3xl border border-[#E5E7EB] bg-white shadow-md shadow-slate-200/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1.5">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-indigo-500 fill-current" />
-                <span>SaaS SQL Workspace Sandbox</span>
+                <span>AI-Powered SQL Workspace Sandbox</span>
               </h2>
               <p className="text-sm text-slate-500 max-w-2xl font-semibold leading-relaxed">
                 Type natural language prompts to translate, explain, and validate SQL queries against your database schemas. Use quick examples or logs from the sidebar query records index.
@@ -215,7 +215,7 @@ export default function Home() {
             </div>
             
             {/* Context Stats */}
-            <div className="flex gap-4 self-start md:self-auto border-t md:border-t-0 md:border-l border-slate-200 pt-3.5 md:pt-0 md:pl-6">
+            <div className="flex gap-4 self-start md:self-auto border-t md:border-t-0 md:border-l border-[#E5E7EB] pt-3.5 md:pt-0 md:pl-6">
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Active Connection</span>
                 <p className="text-xs font-semibold text-slate-700 mt-0.5">MySQL Server</p>

@@ -13,8 +13,8 @@ export default function ResultsTable({
   }
 
   return (
-    <div className="bg-white border border-slate-200/60 rounded-3xl overflow-hidden shadow-lg shadow-slate-200/40">
-      <div className="px-8 py-5 border-b border-slate-200/60 bg-slate-50/50 flex items-center justify-between">
+    <div className="bg-white border border-[#E5E7EB] rounded-3xl overflow-hidden shadow-lg shadow-slate-200/40">
+      <div className="px-8 py-5 border-b border-[#E5E7EB] bg-slate-50/50 flex items-center justify-between">
         <div className="flex items-center space-x-2.5">
           <div className="p-1.5 bg-indigo-50 border border-indigo-100 rounded-lg">
             <Table className="w-4 h-4 text-indigo-650" />
@@ -27,7 +27,7 @@ export default function ResultsTable({
             type="button"
             onClick={onExportCSV}
             disabled={exportLoading}
-            className="flex items-center space-x-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-55 border border-slate-200 hover:border-slate-350 py-2 px-4 rounded-xl transition-all disabled:opacity-50"
+            className="flex items-center space-x-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-[#E5E7EB] hover:border-slate-400 py-2 px-4 rounded-xl transition-all disabled:opacity-50"
           >
             {exportLoading ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -65,10 +65,10 @@ export default function ResultsTable({
                   Query executed successfully.<br />No rows returned.
                 </div>
               ) : (
-                <div className="overflow-x-auto border border-slate-200/60 rounded-2xl shadow-inner bg-slate-50/10">
+                <div className="overflow-x-auto border border-[#E5E7EB] rounded-2xl shadow-inner bg-slate-50/10">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr className="bg-slate-100/50 text-slate-650 border-b border-slate-200/60">
+                      <tr className="bg-slate-100/50 text-slate-650 border-b border-[#E5E7EB]">
                         {Object.keys(executeResults[0]).map((key) => (
                           <th key={key} className="py-3.5 px-6 font-bold select-none uppercase tracking-wider text-[10px] text-slate-500">
                             {key}

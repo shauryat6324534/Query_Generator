@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { retryGemini } from "../utils/retryGemini.js";
 
 /**
  * Generates SQL from a natural language prompt using Google Gemini API.
@@ -19,7 +20,7 @@ export const generateSQL = async (prompt) => {
 
     // Using gemini-1.5-flash as the fast, stable translation engine
     const model = genAI.getGenerativeModel({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.0-flash",
       systemInstruction:
         "You are an expert SQL generation assistant. Translate the given natural language prompt into a single, syntactically correct SQL query. " +
         "Do not wrap your output in markdown code blocks (like ```sql ... ```). " +
@@ -27,9 +28,11 @@ export const generateSQL = async (prompt) => {
         "Return ONLY the raw SQL statement.",
     });
 
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-    });
+    const result = await retryGemini(() =>
+      model.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      })
+    );
 
     const responseText = result.response.text();
 

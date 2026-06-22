@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { retryGemini } from "../utils/retryGemini.js";
 
 /**
  * Service to perform static safety analysis and row estimates for SQL queries.
@@ -27,7 +28,7 @@ export const analyzeQueryImpact = async (sql) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     
     const model = genAI.getGenerativeModel({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.0-flash",
       systemInstruction:
         "You are an expert database safety and performance analysis assistant. " +
         "Analyze the provided SQL query and estimate its execution impact without running it. " +
@@ -43,9 +44,11 @@ export const analyzeQueryImpact = async (sql) => {
         "Return ONLY the raw JSON text.",
     });
 
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: sql }] }],
-    });
+    const result = await retryGemini(() =>
+      model.generateContent({
+        contents: [{ role: "user", parts: [{ text: sql }] }],
+      })
+    );
 
     const responseText = result.response.text();
     
