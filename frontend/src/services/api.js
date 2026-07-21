@@ -142,3 +142,42 @@ export const exportCSV = async (results) => {
     throw new Error(error.message || "Failed to export query results to CSV");
   }
 };
+
+/**
+ * Fetches the active database schema columns and tables.
+ * @returns {Promise<Array<{ tableName: string, columns: Array<{ columnName: string, dataType: string, isPrimaryKey: boolean, isNullable: boolean }> }>>}
+ */
+export const getSchema = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/schema`);
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    throw new Error(error.message || "Failed to fetch database schema");
+  }
+};
+
+/**
+ * Optimizes a SQL query for performance using the Gemini model.
+ * @param {string} sql
+ * @returns {Promise<{ optimizedSql: string, explanation: string }>}
+ */
+export const optimizeQuery = async (sql) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/optimize-query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sql }),
+    });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    throw new Error(error.message || "Failed to optimize SQL query");
+  }
+};

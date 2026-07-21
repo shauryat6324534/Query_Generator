@@ -7,6 +7,9 @@ export default {
   theme: {
     extend: {
       colors: {
+        brutalYellow: "#ffe17c",
+        brutalCharcoal: "#171e19",
+        brutalSage: "#b7c6c2",
         brand: {
           50: "#f5f7ff",
           100: "#ebf0ff",
@@ -18,11 +21,13 @@ export default {
           700: "#4338ca",
           800: "#3730a3",
           900: "#312e81",
-          950: "#0b0f19", // Ultra dark slate/indigo hybrid background
+          950: "#0b0f19",
         },
       },
       fontFamily: {
-        sans: ["Inter", "sans-serif"],
+        sans: ["Satoshi", "Inter", "sans-serif"],
+        cabinet: ["Cabinet Grotesk", "sans-serif"],
+        satoshi: ["Satoshi", "sans-serif"],
       },
       animation: {
         "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",

@@ -8,6 +8,8 @@ import impactRouter from "./routes/impact.js";
 import executeRouter from "./routes/execute.js";
 import historyRouter from "./routes/history.js";
 import exportRouter from "./routes/export.js";
+import schemaRouter from "./routes/schema.js";
+import optimizeRouter from "./routes/optimize.js";
 
 // Load environment variables
 dotenv.config();
@@ -27,6 +29,8 @@ app.use("/analyze-impact", impactRouter);
 app.use("/execute-query", executeRouter);
 app.use("/history", historyRouter);
 app.use("/export-csv", exportRouter);
+app.use("/schema", schemaRouter);
+app.use("/optimize-query", optimizeRouter);
 
 // Root route welcome message
 app.get("/", (req, res) => {

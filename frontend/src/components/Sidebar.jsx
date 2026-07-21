@@ -1,99 +1,249 @@
-import React from "react";
-import { History, Loader2, Database, Cpu } from "lucide-react";
+import React, { useState } from "react";
+import { History, Loader2, Database, Cpu, Bookmark, Settings, ChevronRight, ChevronDown, CheckCircle, Network, HardDrive } from "lucide-react";
 
 export default function Sidebar({
   history,
   historyLoading,
   historyError,
   backendOnline,
-  onLoadHistoryItem
+  onLoadHistoryItem,
+  activeModel,
+  activeDatabase,
+  setActiveDatabase
 }) {
+  const [openSections, setOpenSections] = useState({
+    history: true,
+    saved: false,
+    connections: false,
+    settings: false
+  });
+
+  const toggleSection = (section) => {
+    setOpenSections((prev) => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  const SAVED_QUERIES = [
+    {
+      id: "s1",
+      prompt: "Find all employees who make more than 60000 and work in Sales",
+      label: "High Earners in Sales"
+    },
+    {
+      id: "s2",
+      prompt: "Calculate average employee salaries grouped by department name",
+      label: "Avg Dept Salaries"
+    },
+    {
+      id: "s3",
+      prompt: "Get all customer records created in the last 180 days with no transactions",
+      label: "Dormant Registrants"
+    },
+    {
+      id: "s4",
+      prompt: "Prune security logs that are older than 90 days from the index",
+      label: "Audit Logs Cleanup"
+    }
+  ];
+
+  const DATABASE_CONNECTIONS = [
+    { id: "mysql-local", name: "MySQL Local", host: "localhost:3306", status: "online" },
+    { id: "postgres-staging", name: "PostgreSQL Staging", host: "10.0.4.15:5432", status: "offline" },
+    { id: "sqlite-sandbox", name: "SQLite Sandbox", host: "/stage_sandbox.db", status: "online" }
+  ];
+
   return (
-    <aside className="w-80 bg-[#F6F7F9] text-[#111827] flex flex-col h-screen sticky top-0 flex-shrink-0 z-50 shadow-md border-r border-[#E5E7EB]">
-      {/* Sidebar Header Brand */}
-      <div className="p-6 border-b border-[#E5E7EB] flex items-center space-x-3.5 bg-white">
-        <div className="p-2 bg-indigo-600 rounded-xl text-white shadow-md shadow-indigo-100">
-          <Database className="w-5 h-5 text-white" />
+    <aside className="w-80 bg-brutalCharcoal text-white flex flex-col h-full shrink-0 border-r-2 border-black font-satoshi overflow-hidden select-none z-30">
+      
+      {/* Workspace Indicator Card */}
+      <div className="p-4 border-b-2 border-black bg-[#272f2a] flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 bg-brutalYellow flex items-center justify-center border-2 border-black shadow-brutal-sm">
+            <HardDrive className="w-4 h-4 text-black" />
+          </div>
+          <div>
+            <h2 className="text-[10px] font-extrabold uppercase tracking-widest text-[#b7c6c2] leading-none">Active Workspace</h2>
+            <span className="text-xs font-extrabold text-white mt-1 block">production_db_replica</span>
+          </div>
         </div>
-        <div>
-          <h2 className="text-sm font-extrabold text-[#111827] tracking-wider uppercase">Workspace</h2>
-          <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-widest mt-0.5">Control Panel</p>
-        </div>
+        <span className="w-2.5 h-2.5 bg-green-500 border border-black rounded-none" title="Connected" />
       </div>
 
-      {/* System Status Indicators */}
-      <div className="p-6 border-b border-[#E5E7EB] space-y-4">
-        <h3 className="text-[10px] font-bold text-[#6B7280] uppercase tracking-widest pl-1">System Parameters</h3>
+      {/* Accordions Stack Container */}
+      <div className="flex-grow overflow-y-auto divide-y-2 divide-black bg-[#171e19]">
         
-        <div className="grid grid-cols-1 gap-3">
-          <div className="flex items-center justify-between p-3.5 bg-[#FFFFFF] border border-[#E5E7EB] rounded-xl text-xs shadow-sm">
-            <span className="text-[#6B7280] font-semibold flex items-center gap-1.5">
-              <Cpu className="w-3.5 h-3.5 text-[#6B7280]" />
-              Engine
+        {/* Accordion 1: Query History */}
+        <div className="flex flex-col">
+          <button
+            onClick={() => toggleSection("history")}
+            className="w-full flex items-center justify-between p-3.5 bg-[#202722] hover:bg-[#2c372f] transition-colors border-b border-black text-xs font-extrabold uppercase tracking-wider text-white"
+          >
+            <span className="flex items-center gap-2">
+              {openSections.history ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              <History className="w-4 h-4 text-brutalYellow" />
+              Query History
             </span>
-            <span className="font-bold text-[#111827] text-[11px]">Gemini 3 Flash</span>
-          </div>
-
-          <div className="flex items-center justify-between p-3.5 bg-[#FFFFFF] border border-[#E5E7EB] rounded-xl text-xs shadow-sm">
-            <span className="text-[#6B7280] font-semibold flex items-center gap-1.5">
-              <Database className="w-3.5 h-3.5 text-[#6B7280]" />
-              Database
+            <span className="text-[9px] font-mono bg-white text-black border-2 border-black px-1.5 py-0.2 shadow-brutal-sm font-bold">
+              {history.length} Logs
             </span>
-            <span className="font-bold text-[#111827] text-[11px]">MySQL Local</span>
-          </div>
+          </button>
+          
+          {openSections.history && (
+            <div className="p-3 space-y-2 bg-[#171e19] max-h-60 overflow-y-auto">
+              {historyLoading && history.length === 0 ? (
+                <div className="flex items-center justify-center py-8 gap-2">
+                  <Loader2 className="w-4 h-4 text-[#b7c6c2] animate-spin" />
+                  <span className="text-[10px] font-bold">Loading...</span>
+                </div>
+              ) : historyError ? (
+                <p className="text-[10px] text-red-400 font-bold p-2 text-center bg-red-950/20">{historyError}</p>
+              ) : history.length === 0 ? (
+                <p className="text-[10px] text-[#b7c6c2] text-center py-6 leading-relaxed">No logged queries.</p>
+              ) : (
+                <div className="space-y-2">
+                  {history.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => onLoadHistoryItem(item)}
+                      className="w-full text-left p-2.5 bg-white text-black border-2 border-black hover:translate-x-0.5 hover:translate-y-0.5 shadow-brutal hover:shadow-brutal-sm transition-all flex flex-col space-y-1.5"
+                    >
+                      <div className="flex justify-between items-start w-full gap-2">
+                        <p className="text-[11px] font-extrabold line-clamp-2 leading-relaxed text-black">
+                          {item.prompt}
+                        </p>
+                        <span className="text-[8px] text-black/55 font-mono font-bold shrink-0 mt-0.5">
+                          {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <pre className="text-[9px] font-mono text-black/70 line-clamp-1 truncate w-full select-none bg-[#f5f5f5] p-1 border border-black/5">
+                        {item.sql_query}
+                      </pre>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
-      </div>
 
-      {/* History Logger */}
-      <div className="flex-grow flex flex-col min-h-0 bg-[#F6F7F9]">
-        <div className="px-6 py-4 flex items-center justify-between border-b border-[#E5E7EB] bg-white">
-          <h3 className="text-[10px] font-bold text-[#6B7280] uppercase tracking-widest flex items-center gap-2">
-            <History className="w-3.5 h-3.5 text-[#6B7280]" />
-            <span>Query History</span>
-          </h3>
-          <span className="text-[10px] font-mono font-bold py-0.5 px-2.5 bg-[#F6F7F9] text-[#6B7280] border border-[#E5E7EB] rounded-full flex-shrink-0">
-            {history.length} Logs
-          </span>
-        </div>
-
-        <div className="flex-grow overflow-y-auto p-5 space-y-4">
-          {historyLoading && history.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 space-y-3">
-              <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
-              <p className="text-xs text-[#6B7280] font-medium">Fetching history...</p>
-            </div>
-          ) : historyError ? (
-            <div className="text-center py-10 text-xs text-rose-600 font-medium">
-              {historyError}
-            </div>
-          ) : history.length === 0 ? (
-            <div className="text-center py-20 text-xs text-[#6B7280] leading-relaxed font-medium">
-              No saved query logs.<br />Generated items list here.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {history.map((item) => (
+        {/* Accordion 2: Saved Queries */}
+        <div className="flex flex-col">
+          <button
+            onClick={() => toggleSection("saved")}
+            className="w-full flex items-center justify-between p-3.5 bg-[#202722] hover:bg-[#2c372f] transition-colors border-b border-black text-xs font-extrabold uppercase tracking-wider text-white"
+          >
+            <span className="flex items-center gap-2">
+              {openSections.saved ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              <Bookmark className="w-4 h-4 text-brutalYellow fill-current" />
+              Saved Queries
+            </span>
+          </button>
+          
+          {openSections.saved && (
+            <div className="p-3 bg-[#171e19] space-y-2.5">
+              {SAVED_QUERIES.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => onLoadHistoryItem(item)}
-                  className="w-full text-left p-4 bg-[#FFFFFF] hover:bg-slate-50 border border-[#E5E7EB] hover:border-indigo-300 rounded-xl transition-all duration-200 group flex flex-col space-y-2.5 shadow-sm"
+                  onClick={() => onLoadHistoryItem({ prompt: item.prompt, sql_query: "" })}
+                  className="w-full text-left p-2.5 bg-white text-black border-2 border-black hover:translate-x-0.5 hover:translate-y-0.5 shadow-brutal hover:shadow-brutal-sm transition-all flex flex-col space-y-1"
                 >
-                  <div className="flex justify-between items-start w-full gap-3">
-                    <p className="text-sm font-semibold text-[#111827] line-clamp-2 leading-relaxed group-hover:text-indigo-600 transition-colors">
-                      {item.prompt}
-                    </p>
-                    <span className="text-[10px] text-[#6B7280] font-mono font-medium flex-shrink-0 mt-0.5">
-                      {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <pre className="text-[10px] font-mono text-[#6B7280] line-clamp-1 truncate w-full overflow-hidden select-none bg-[#F6F7F9] p-2 rounded border border-[#E5E7EB]">
-                    {item.sql_query}
-                  </pre>
+                  <span className="text-[11px] font-extrabold text-black flex items-center gap-1">
+                    <Bookmark className="w-3 h-3 fill-current text-brutalYellow" />
+                    {item.label}
+                  </span>
+                  <p className="text-[10px] text-black/60 font-semibold line-clamp-2 leading-normal">
+                    {item.prompt}
+                  </p>
                 </button>
               ))}
             </div>
           )}
         </div>
+
+        {/* Accordion 3: Database Connections */}
+        <div className="flex flex-col">
+          <button
+            onClick={() => toggleSection("connections")}
+            className="w-full flex items-center justify-between p-3.5 bg-[#202722] hover:bg-[#2c372f] transition-colors border-b border-black text-xs font-extrabold uppercase tracking-wider text-white"
+          >
+            <span className="flex items-center gap-2">
+              {openSections.connections ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              <Network className="w-4 h-4 text-brutalYellow" />
+              Database Connections
+            </span>
+          </button>
+          
+          {openSections.connections && (
+            <div className="p-3 bg-[#171e19] space-y-2.5">
+              {DATABASE_CONNECTIONS.map((conn) => {
+                const isActive = activeDatabase === conn.id;
+                return (
+                  <button
+                    key={conn.id}
+                    onClick={() => setActiveDatabase(conn.id)}
+                    className={`w-full text-left p-2.5 border-2 border-black shadow-brutal hover:shadow-brutal-sm hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-between ${
+                      isActive ? "bg-brutalYellow text-black" : "bg-white text-black"
+                    }`}
+                  >
+                    <div>
+                      <span className="text-[11px] font-extrabold block">{conn.name}</span>
+                      <span className="text-[9px] font-mono font-bold block opacity-60 mt-0.5">{conn.host}</span>
+                    </div>
+                    
+                    <span className={`w-2 h-2 border border-black rounded-none shrink-0 ${
+                      conn.status === "online" 
+                        ? (isActive && backendOnline ? "bg-green-500 animate-pulse" : "bg-green-500") 
+                        : "bg-red-500"
+                    }`} />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Accordion 4: Settings */}
+        <div className="flex flex-col">
+          <button
+            onClick={() => toggleSection("settings")}
+            className="w-full flex items-center justify-between p-3.5 bg-[#202722] hover:bg-[#2c372f] transition-colors border-b border-black text-xs font-extrabold uppercase tracking-wider text-white"
+          >
+            <span className="flex items-center gap-2">
+              {openSections.settings ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              <Settings className="w-4 h-4 text-brutalYellow" />
+              Settings
+            </span>
+          </button>
+          
+          {openSections.settings && (
+            <div className="p-3 bg-[#171e19]">
+              <div className="bg-white text-black border-2 border-black p-3 space-y-3.5 shadow-brutal">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-extrabold uppercase tracking-wider text-black/50 block">Auto-explain Output</label>
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" defaultChecked id="cb-sidebar-explain" className="w-4 h-4 accent-black border-2 border-black" />
+                    <label htmlFor="cb-sidebar-explain" className="text-[11px] font-bold">Enabled</label>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-extrabold uppercase tracking-wider text-black/50 block">Query Limit (Rows)</label>
+                  <input type="number" defaultValue={200} className="w-full border-2 border-black text-xs font-bold px-1.5 py-0.5 bg-white focus:outline-none focus:bg-brutalYellow" />
+                </div>
+
+                <div className="space-y-0.5">
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-black/50 block">Theme profile</span>
+                  <span className="text-[10px] font-extrabold block bg-brutalYellow border border-black py-0.5 text-center uppercase tracking-wide">
+                    Neo-Brutalism
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        
       </div>
     </aside>
   );
