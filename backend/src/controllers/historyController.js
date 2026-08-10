@@ -7,7 +7,8 @@ import { getHistory } from "../services/historyService.js";
  */
 export const fetchHistory = async (req, res) => {
   try {
-    const history = await getHistory();
+    const userId = req.user.userId;
+    const history = await getHistory(userId);
     return res.status(200).json(history);
   } catch (error) {
     console.error("[historyController] Error:", error);

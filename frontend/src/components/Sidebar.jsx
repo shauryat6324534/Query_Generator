@@ -1,20 +1,14 @@
 import React, { useState } from "react";
-import { History, Loader2, Database, Cpu, Bookmark, Settings, ChevronRight, ChevronDown, CheckCircle, Network, HardDrive } from "lucide-react";
+import { History, Loader2, Bookmark, Settings, ChevronRight, ChevronDown } from "lucide-react";
 
 export default function Sidebar({
   history,
   historyLoading,
   historyError,
-  backendOnline,
-  onLoadHistoryItem,
-  activeModel,
-  activeDatabase,
-  setActiveDatabase
+  onLoadHistoryItem
 }) {
   const [openSections, setOpenSections] = useState({
-    history: true,
-    saved: false,
-    connections: false,
+    saved: true,
     settings: false
   });
 
@@ -48,112 +42,90 @@ export default function Sidebar({
     }
   ];
 
-  const DATABASE_CONNECTIONS = [
-    { id: "mysql-local", name: "MySQL Local", host: "localhost:3306", status: "online" },
-    { id: "postgres-staging", name: "PostgreSQL Staging", host: "10.0.4.15:5432", status: "offline" },
-    { id: "sqlite-sandbox", name: "SQLite Sandbox", host: "/stage_sandbox.db", status: "online" }
-  ];
-
   return (
     <aside className="w-80 bg-brutalCharcoal text-white flex flex-col h-full shrink-0 border-r-2 border-black font-satoshi overflow-hidden select-none z-30">
       
-      {/* Workspace Indicator Card */}
-      <div className="p-4 border-b-2 border-black bg-[#272f2a] flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-brutalYellow flex items-center justify-center border-2 border-black shadow-brutal-sm">
-            <HardDrive className="w-4 h-4 text-black" />
-          </div>
-          <div>
-            <h2 className="text-[10px] font-extrabold uppercase tracking-widest text-[#b7c6c2] leading-none">Active Workspace</h2>
-            <span className="text-xs font-extrabold text-white mt-1 block">production_db_replica</span>
-          </div>
-        </div>
-        <span className="w-2.5 h-2.5 bg-green-500 border border-black rounded-none" title="Connected" />
+      {/* 1. Permanently Prominent Query History Header & Container */}
+      <div className="p-3.5 bg-[#202722] border-b-2 border-black flex items-center justify-between shrink-0 font-extrabold uppercase tracking-wider text-xs">
+        <span className="flex items-center gap-2">
+          <History className="w-4 h-4 text-brutalYellow" />
+          Query History
+        </span>
+        <span className="text-[9px] font-mono bg-white text-black border-2 border-black px-1.5 py-0.2 shadow-brutal-sm font-bold">
+          {history.length} Logs
+        </span>
       </div>
 
-      {/* Accordions Stack Container */}
-      <div className="flex-grow overflow-y-auto divide-y-2 divide-black bg-[#171e19]">
-        
-        {/* Accordion 1: Query History */}
-        <div className="flex flex-col">
-          <button
-            onClick={() => toggleSection("history")}
-            className="w-full flex items-center justify-between p-3.5 bg-[#202722] hover:bg-[#2c372f] transition-colors border-b border-black text-xs font-extrabold uppercase tracking-wider text-white"
-          >
-            <span className="flex items-center gap-2">
-              {openSections.history ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              <History className="w-4 h-4 text-brutalYellow" />
-              Query History
-            </span>
-            <span className="text-[9px] font-mono bg-white text-black border-2 border-black px-1.5 py-0.2 shadow-brutal-sm font-bold">
-              {history.length} Logs
-            </span>
-          </button>
-          
-          {openSections.history && (
-            <div className="p-3 space-y-2 bg-[#171e19] max-h-60 overflow-y-auto">
-              {historyLoading && history.length === 0 ? (
-                <div className="flex items-center justify-center py-8 gap-2">
-                  <Loader2 className="w-4 h-4 text-[#b7c6c2] animate-spin" />
-                  <span className="text-[10px] font-bold">Loading...</span>
+      <div className="flex-grow overflow-y-auto p-3 space-y-2 bg-[#171e19]">
+        {historyLoading && history.length === 0 ? (
+          <div className="flex items-center justify-center py-20 gap-2">
+            <Loader2 className="w-4 h-4 text-[#b7c6c2] animate-spin" />
+            <span className="text-[10px] font-bold">Loading...</span>
+          </div>
+        ) : historyError ? (
+          <p className="text-[10px] text-red-400 font-bold p-2 text-center bg-red-950/20">{historyError}</p>
+        ) : history.length === 0 ? (
+          <p className="text-[10px] text-[#b7c6c2] text-center py-20 leading-relaxed">No logged queries yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {history.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => onLoadHistoryItem(item)}
+                className="w-full text-left p-2.5 bg-white text-black border-2 border-black hover:translate-x-0.5 hover:translate-y-0.5 shadow-brutal hover:shadow-brutal-sm transition-all flex flex-col space-y-1.5"
+              >
+                <div className="flex justify-between items-start w-full gap-2">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[7px] font-extrabold uppercase text-black/50 bg-[#eef3f1] border border-black/10 px-1 py-0.2 self-start tracking-wider">
+                      {item.db_name || "ai_sql_generator"}
+                    </span>
+                    <p className="text-[11px] font-extrabold line-clamp-2 leading-relaxed text-black">
+                      {item.prompt}
+                    </p>
+                  </div>
+                  <span className="text-[8px] text-black/55 font-mono font-bold shrink-0 mt-0.5">
+                    {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
-              ) : historyError ? (
-                <p className="text-[10px] text-red-400 font-bold p-2 text-center bg-red-950/20">{historyError}</p>
-              ) : history.length === 0 ? (
-                <p className="text-[10px] text-[#b7c6c2] text-center py-6 leading-relaxed">No logged queries.</p>
-              ) : (
-                <div className="space-y-2">
-                  {history.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => onLoadHistoryItem(item)}
-                      className="w-full text-left p-2.5 bg-white text-black border-2 border-black hover:translate-x-0.5 hover:translate-y-0.5 shadow-brutal hover:shadow-brutal-sm transition-all flex flex-col space-y-1.5"
-                    >
-                      <div className="flex justify-between items-start w-full gap-2">
-                        <p className="text-[11px] font-extrabold line-clamp-2 leading-relaxed text-black">
-                          {item.prompt}
-                        </p>
-                        <span className="text-[8px] text-black/55 font-mono font-bold shrink-0 mt-0.5">
-                          {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                      <pre className="text-[9px] font-mono text-black/70 line-clamp-1 truncate w-full select-none bg-[#f5f5f5] p-1 border border-black/5">
-                        {item.sql_query}
-                      </pre>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                <pre className="text-[9px] font-mono text-black/70 line-clamp-1 truncate w-full select-none bg-[#f5f5f5] p-1 border border-black/5">
+                  {item.sql_query}
+                </pre>
+              </button>
+            ))}
 
-        {/* Accordion 2: Saved Queries */}
+          </div>
+        )}
+      </div>
+
+      {/* Accordions Container at the Bottom */}
+      <div className="shrink-0 border-t-2 border-black divide-y-2 divide-black bg-[#171e19]">
+        
+        {/* Accordion: Saved Queries */}
         <div className="flex flex-col">
           <button
             onClick={() => toggleSection("saved")}
-            className="w-full flex items-center justify-between p-3.5 bg-[#202722] hover:bg-[#2c372f] transition-colors border-b border-black text-xs font-extrabold uppercase tracking-wider text-white"
+            className="w-full flex items-center justify-between p-3.5 bg-[#202722] hover:bg-[#2c372f] transition-colors text-xs font-extrabold uppercase tracking-wider text-white"
           >
             <span className="flex items-center gap-2">
               {openSections.saved ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
               <Bookmark className="w-4 h-4 text-brutalYellow fill-current" />
-              Saved Queries
+              Quick Templates
             </span>
           </button>
           
           {openSections.saved && (
-            <div className="p-3 bg-[#171e19] space-y-2.5">
+            <div className="p-3 bg-[#171e19] space-y-2 max-h-48 overflow-y-auto border-t border-black/20">
               {SAVED_QUERIES.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => onLoadHistoryItem({ prompt: item.prompt, sql_query: "" })}
-                  className="w-full text-left p-2.5 bg-white text-black border-2 border-black hover:translate-x-0.5 hover:translate-y-0.5 shadow-brutal hover:shadow-brutal-sm transition-all flex flex-col space-y-1"
+                  className="w-full text-left p-2 bg-white text-black border-2 border-black hover:translate-x-0.5 hover:translate-y-0.5 shadow-brutal hover:shadow-brutal-sm transition-all flex flex-col space-y-0.5"
                 >
-                  <span className="text-[11px] font-extrabold text-black flex items-center gap-1">
-                    <Bookmark className="w-3 h-3 fill-current text-brutalYellow" />
+                  <span className="text-[10px] font-extrabold text-black flex items-center gap-1">
+                    <Bookmark className="w-2.5 h-2.5 fill-current text-brutalYellow" />
                     {item.label}
                   </span>
-                  <p className="text-[10px] text-black/60 font-semibold line-clamp-2 leading-normal">
+                  <p className="text-[9px] text-black/60 font-semibold line-clamp-1 leading-normal">
                     {item.prompt}
                   </p>
                 </button>
@@ -162,53 +134,11 @@ export default function Sidebar({
           )}
         </div>
 
-        {/* Accordion 3: Database Connections */}
-        <div className="flex flex-col">
-          <button
-            onClick={() => toggleSection("connections")}
-            className="w-full flex items-center justify-between p-3.5 bg-[#202722] hover:bg-[#2c372f] transition-colors border-b border-black text-xs font-extrabold uppercase tracking-wider text-white"
-          >
-            <span className="flex items-center gap-2">
-              {openSections.connections ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              <Network className="w-4 h-4 text-brutalYellow" />
-              Database Connections
-            </span>
-          </button>
-          
-          {openSections.connections && (
-            <div className="p-3 bg-[#171e19] space-y-2.5">
-              {DATABASE_CONNECTIONS.map((conn) => {
-                const isActive = activeDatabase === conn.id;
-                return (
-                  <button
-                    key={conn.id}
-                    onClick={() => setActiveDatabase(conn.id)}
-                    className={`w-full text-left p-2.5 border-2 border-black shadow-brutal hover:shadow-brutal-sm hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-between ${
-                      isActive ? "bg-brutalYellow text-black" : "bg-white text-black"
-                    }`}
-                  >
-                    <div>
-                      <span className="text-[11px] font-extrabold block">{conn.name}</span>
-                      <span className="text-[9px] font-mono font-bold block opacity-60 mt-0.5">{conn.host}</span>
-                    </div>
-                    
-                    <span className={`w-2 h-2 border border-black rounded-none shrink-0 ${
-                      conn.status === "online" 
-                        ? (isActive && backendOnline ? "bg-green-500 animate-pulse" : "bg-green-500") 
-                        : "bg-red-500"
-                    }`} />
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Accordion 4: Settings */}
+        {/* Accordion: Settings */}
         <div className="flex flex-col">
           <button
             onClick={() => toggleSection("settings")}
-            className="w-full flex items-center justify-between p-3.5 bg-[#202722] hover:bg-[#2c372f] transition-colors border-b border-black text-xs font-extrabold uppercase tracking-wider text-white"
+            className="w-full flex items-center justify-between p-3.5 bg-[#202722] hover:bg-[#2c372f] transition-colors text-xs font-extrabold uppercase tracking-wider text-white"
           >
             <span className="flex items-center gap-2">
               {openSections.settings ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -218,7 +148,7 @@ export default function Sidebar({
           </button>
           
           {openSections.settings && (
-            <div className="p-3 bg-[#171e19]">
+            <div className="p-3 bg-[#171e19] border-t border-black/20">
               <div className="bg-white text-black border-2 border-black p-3 space-y-3.5 shadow-brutal">
                 <div className="space-y-1">
                   <label className="text-[9px] font-extrabold uppercase tracking-wider text-black/50 block">Auto-explain Output</label>
@@ -231,13 +161,6 @@ export default function Sidebar({
                 <div className="space-y-1">
                   <label className="text-[9px] font-extrabold uppercase tracking-wider text-black/50 block">Query Limit (Rows)</label>
                   <input type="number" defaultValue={200} className="w-full border-2 border-black text-xs font-bold px-1.5 py-0.5 bg-white focus:outline-none focus:bg-brutalYellow" />
-                </div>
-
-                <div className="space-y-0.5">
-                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-black/50 block">Theme profile</span>
-                  <span className="text-[10px] font-extrabold block bg-brutalYellow border border-black py-0.5 text-center uppercase tracking-wide">
-                    Neo-Brutalism
-                  </span>
                 </div>
               </div>
             </div>

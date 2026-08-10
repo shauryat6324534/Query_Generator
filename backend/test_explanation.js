@@ -1,4 +1,4 @@
-import { explainSQL } from "./src/services/explanationService.js";
+import { explainSQL } from "./src/services/aiService.js";
 import dotenv from "dotenv";
 
 dotenv.config();

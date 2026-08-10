@@ -34,14 +34,9 @@ export default function SchemaExplorer({ schema = [], loading, error, onRefresh,
       
       {/* Explorer Header */}
       <div className="p-4 border-b-2 border-black bg-white flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-black flex items-center justify-center border border-black shadow-brutal-sm">
-            <Database className="w-4 h-4 text-brutalYellow" />
-          </div>
-          <div>
-            <h2 className="text-xs font-extrabold uppercase tracking-tight text-black">Schema Explorer</h2>
-            <p className="text-[9px] font-bold text-black/60 uppercase tracking-widest mt-0.5">Database Catalogs</p>
-          </div>
+        <div className="flex items-center gap-2">
+          <Database className="w-4 h-4 text-black shrink-0" />
+          <h2 className="text-xs font-extrabold uppercase tracking-tight text-black">Schema Explorer</h2>
         </div>
         
         <button 

@@ -8,18 +8,20 @@ import { executeQuery } from "../database/mysql.js";
 /**
  * Executes a SQL statement against the active database.
  * @param {string} sql
+ * @param {string} [sessionId=null]
  * @returns {Promise<any>} Rows list (for read SELECT statements) or database metadata status (for writes/updates).
  */
-export const runQuery = async (sql) => {
+export const runQuery = async (sql, sessionId = null) => {
   if (!sql || !sql.trim()) {
     throw new Error("SQL query statement is required for execution.");
   }
 
   try {
-    const results = await executeQuery(sql);
+    const results = await executeQuery(sql, [], sessionId);
     return results;
   } catch (error) {
     console.error("[executionService] Query execution failed:", error);
     throw new Error(`Query execution failed: ${error.message}`);
   }
 };
+

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { AlertTriangle, Facebook, Twitter, Github, Linkedin } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { AlertTriangle, Zap, Loader2 } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
 import IntroductionCard from "../components/IntroductionCard";
@@ -16,7 +16,13 @@ import {
   executeQuery,
   exportCSV,
   getSchema,
-  optimizeQuery
+  optimizeQuery,
+  connectDatabase,
+  disconnectDatabase,
+  loginUser,
+  registerUser,
+  logoutUser,
+  checkAuthUser
 } from "../services/api";
 
 const FALLBACK_SCHEMA = [
@@ -74,10 +80,99 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // App control states
-  const [activeModel, setActiveModel] = useState("gemini-2.0-flash");
-  const [activeDatabase, setActiveDatabase] = useState("mysql-local");
-  const [headerSearch, setHeaderSearch] = useState("");
+  // Database Connection Session states
+  const [sessionId, setSessionId] = useState(null);
+  const [activeDatabase, setActiveDatabase] = useState("ai_sql_generator");
+  const [isCustomDbActive, setIsCustomDbActive] = useState(false);
+  const [connectLoading, setConnectLoading] = useState(false);
+  const [connectError, setConnectError] = useState(null);
+
+  const handleConnectDb = async (config) => {
+    setConnectLoading(true);
+    setConnectError(null);
+    addLog("info", `Attempting connection to custom database: "${config.database}"...`);
+    try {
+      const data = await connectDatabase(config);
+      setSessionId(data.sessionId);
+      setActiveDatabase(data.database);
+      setIsCustomDbActive(true);
+      addLog("success", `Successfully connected to custom database: "${data.database}"`);
+      
+      // Instantly load schema of the newly connected database
+      setSchemaLoading(true);
+      setSchemaError(null);
+      try {
+        const schemaData = await getSchema(data.sessionId);
+        if (schemaData && schemaData.length > 0) {
+          setSchema(schemaData);
+          addLog("info", `Fetched database schema catalog for "${data.database}". Detected ${schemaData.length} tables.`);
+        } else {
+          setSchema(FALLBACK_SCHEMA);
+          addLog("warning", `Schema catalog for "${data.database}" returned 0 tables.`);
+        }
+      } catch (schemaErr) {
+        console.error("Failed to load schema details on connection switch:", schemaErr);
+        setSchema(FALLBACK_SCHEMA);
+        setSchemaError(`Failed to fetch schema details for ${data.database}`);
+      } finally {
+        setSchemaLoading(false);
+      }
+
+      // Re-fetch log history to load context history
+      fetchHistoryLogs();
+
+      return true;
+    } catch (err) {
+      setConnectError(err.message);
+      addLog("error", `Connection to "${config.database}" failed: ${err.message}`);
+      return false;
+    } finally {
+      setConnectLoading(false);
+    }
+  };
+
+  const handleDisconnectDb = async () => {
+    if (!sessionId) return;
+    addLog("info", "Disconnecting custom database and reverting to default connection...");
+    try {
+      await disconnectDatabase(sessionId);
+    } catch (err) {
+      console.error("Disconnect error:", err);
+    }
+    setSessionId(null);
+    setActiveDatabase("ai_sql_generator");
+    setIsCustomDbActive(false);
+    addLog("success", "Reverted to default database 'ai_sql_generator'.");
+    
+    // Refresh schema for default database
+    setSchemaLoading(true);
+    setSchemaError(null);
+    try {
+      const schemaData = await getSchema(null);
+      if (schemaData && schemaData.length > 0) {
+        setSchema(schemaData);
+        addLog("info", `Restored schema catalog for default database. Detected ${schemaData.length} tables.`);
+      } else {
+        setSchema(FALLBACK_SCHEMA);
+      }
+    } catch (err) {
+      setSchema(FALLBACK_SCHEMA);
+    } finally {
+      setSchemaLoading(false);
+    }
+
+    fetchHistoryLogs();
+  };
+
+  // App control states (cleaned)
+  const activePromptRef = useRef("");
+  const [user, setUser] = useState(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [authTab, setAuthTab] = useState("login"); // 'login' | 'register'
+  const [authUsername, setAuthUsername] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authError, setAuthError] = useState(null);
+  const [authSuccessMsg, setAuthSuccessMsg] = useState("");
 
   // Health and System State
   const [backendOnline, setBackendOnline] = useState(false);
@@ -143,7 +238,7 @@ export default function Home() {
     setSchemaLoading(true);
     setSchemaError(null);
     try {
-      const data = await getSchema();
+      const data = await getSchema(sessionId);
       if (data && data.length > 0) {
         setSchema(data);
         addLog("info", `Fetched database schema catalog. Detected ${data.length} tables.`);
@@ -173,10 +268,82 @@ export default function Home() {
     }
   };
 
+  const checkAuth = async () => {
+    setIsAuthLoading(true);
+    try {
+      const data = await checkAuthUser();
+      if (data && data.user) {
+        setUser(data.user);
+        addLog("success", `Active session restored for user: "${data.user.username}"`);
+        fetchHistoryLogs();
+        fetchSchemaDetails();
+      }
+    } catch (err) {
+      setUser(null);
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    if (!authUsername.trim() || !authPassword) return;
+    setAuthError(null);
+    try {
+      const data = await loginUser(authUsername, authPassword);
+      if (data && data.user) {
+        setUser(data.user);
+        addLog("success", `Logged in successfully as "${data.user.username}"`);
+        setAuthUsername("");
+        setAuthPassword("");
+        fetchHistoryLogs();
+        fetchSchemaDetails();
+      }
+    } catch (err) {
+      setAuthError(err.message || "Failed to authenticate. Check credentials.");
+    }
+  };
+
+  const handleRegisterSubmit = async (e) => {
+    e.preventDefault();
+    if (!authUsername.trim() || !authPassword) return;
+    setAuthError(null);
+    setAuthSuccessMsg("");
+    try {
+      const data = await registerUser(authUsername, authPassword);
+      if (data && data.success) {
+        setAuthSuccessMsg("Account created successfully! Please log in.");
+        setAuthTab("login");
+        setAuthPassword("");
+      }
+    } catch (err) {
+      setAuthError(err.message || "Failed to register new user.");
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      addLog("info", `Logged out of user session "${user?.username}".`);
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+    setUser(null);
+    setSessionId(null);
+    setActiveDatabase("ai_sql_generator");
+    setIsCustomDbActive(false);
+    setHistory([]);
+    setSchema([]);
+    setResult(null);
+    setOptimizedSql("");
+    setOptimizedExplanation("");
+    setExplainPlanResults(null);
+    setExecuteResults(null);
+  };
+
   useEffect(() => {
     verifyHealthStatus();
-    fetchHistoryLogs();
-    fetchSchemaDetails();
+    checkAuth();
     addLog("info", "Initialized SQL Query Generator workspace.");
   }, []);
 
@@ -188,6 +355,8 @@ export default function Home() {
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
+    const currentPrompt = prompt;
+    activePromptRef.current = currentPrompt;
     setIsLoading(true);
     setError(null);
     setResult(null);
@@ -198,7 +367,10 @@ export default function Home() {
     addLog("info", "Initiating SQL generation for request...");
     
     try {
-      const genData = await generateQuery(prompt);
+      const genData = await generateQuery(prompt, sessionId);
+      if (activePromptRef.current !== currentPrompt) {
+        return; // Ignore stale response
+      }
       const sql = genData.sql;
       addLog("success", `Generated SQL statement: "${sql.replace(/\s+/g, ' ').substring(0, 45)}..."`);
 
@@ -217,11 +389,14 @@ export default function Home() {
       // Refresh history list
       fetchHistoryLogs();
     } catch (err) {
+      if (activePromptRef.current !== currentPrompt) return;
       console.error("Error generating query response: ", err);
-      setError(err.message || "An unexpected error occurred during SQL generation.");
-      addLog("error", `SQL Generation failed: ${err.message}`);
+      setError("The AI service is currently unavailable. SQL generation cannot be completed at the moment. Please try again later or contact the administrator.");
+      addLog("error", "SQL Generation failed: AI service is currently unavailable. Please try again later.");
     } finally {
-      setIsLoading(false);
+      if (activePromptRef.current === currentPrompt) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -230,7 +405,7 @@ export default function Home() {
     setExplainLoading(true);
     addLog("info", "Requesting step-by-step logic explanation from AI engine...");
     try {
-      const explainRes = await explainQuery(result.sql);
+      const explainRes = await explainQuery(result.sql, sessionId);
       setResult((prev) => ({
         ...prev,
         explanation: explainRes.explanation
@@ -238,7 +413,7 @@ export default function Home() {
       addLog("success", "AI explanation generated successfully.");
     } catch (err) {
       console.error(err);
-      addLog("error", `AI Explanation failed: ${err.message}`);
+      addLog("error", "AI Explanation failed: AI service is currently unavailable. Please try again later.");
     } finally {
       setExplainLoading(false);
     }
@@ -249,7 +424,7 @@ export default function Home() {
     setValidateLoading(true);
     addLog("info", "Running static code safety validation and impact estimation...");
     try {
-      const impactRes = await analyzeImpact(result.sql);
+      const impactRes = await analyzeImpact(result.sql, sessionId);
       setResult((prev) => ({
         ...prev,
         impact: impactRes
@@ -257,7 +432,7 @@ export default function Home() {
       addLog("success", `Validation check complete. Risk assessment: ${impactRes.riskLevel}.`);
     } catch (err) {
       console.error(err);
-      addLog("error", `Safety validation failed: ${err.message}`);
+      addLog("error", "Safety validation failed: AI service is currently unavailable. Please try again later.");
     } finally {
       setValidateLoading(false);
     }
@@ -268,13 +443,13 @@ export default function Home() {
     setOptimizeLoading(true);
     addLog("info", "Requesting query index optimization guidelines and SQL rewrite...");
     try {
-      const optRes = await optimizeQuery(result.sql);
+      const optRes = await optimizeQuery(result.sql, sessionId);
       setOptimizedSql(optRes.optimizedSql);
       setOptimizedExplanation(optRes.explanation);
       addLog("success", "Optimization rewrite complete.");
     } catch (err) {
       console.error(err);
-      addLog("error", `Optimization failed: ${err.message}`);
+      addLog("error", "Optimization failed: AI service is currently unavailable. Please try again later.");
     } finally {
       setOptimizeLoading(false);
     }
@@ -286,7 +461,7 @@ export default function Home() {
     setExplainPlanError(null);
     addLog("info", "Executing EXPLAIN statement against active database instance...");
     try {
-      const data = await executeQuery(`EXPLAIN ${result.sql}`);
+      const data = await executeQuery(`EXPLAIN ${result.sql}`, sessionId);
       setExplainPlanResults(data);
       addLog("success", "EXPLAIN execution plan catalog loaded.");
     } catch (err) {
@@ -332,7 +507,7 @@ export default function Home() {
     setExecuteResults(null);
     addLog("info", `Executing query: "${targetSql.substring(0, 60)}..."`);
     try {
-      const data = await executeQuery(targetSql);
+      const data = await executeQuery(targetSql, sessionId);
       setExecuteResults(data);
       const rowCount = Array.isArray(data) ? data.length : (data.affectedRows ?? 0);
       addLog("success", `Query executed successfully. Returned/affected ${rowCount} rows.`);
@@ -379,94 +554,118 @@ export default function Home() {
     addLog("info", "Cleared prompt editor workspace.");
   };
 
-  // Helper selectors for diagnostics
-  const securityAnalysis = result ? {
-    riskLevel: result.impact.riskLevel,
-    hasDestructive: result.sql.toUpperCase().includes("DELETE") || result.sql.toUpperCase().includes("DROP") || result.sql.toUpperCase().includes("TRUNCATE") || result.sql.toUpperCase().includes("UPDATE"),
-    hasDestructiveWithoutWhere: (result.sql.toUpperCase().includes("DELETE") || result.sql.toUpperCase().includes("UPDATE")) && !result.sql.toUpperCase().includes("WHERE")
-  } : null;
+  // Helper selectors for diagnostics (cleaned mock diagnostics)
 
-  const suggestions = result ? (() => {
-    const list = [];
-    const sqlUpper = result.sql.toUpperCase();
-    if (sqlUpper.includes("JOIN") && !sqlUpper.includes("ON")) list.push("Add ON conditions to JOIN structures to link tables explicitly.");
-    if (!sqlUpper.includes("LIMIT") && sqlUpper.includes("SELECT")) list.push("Append LIMIT clause to SELECT statements to conserve staging memory footprints.");
-    if (sqlUpper.includes("SELECT *")) list.push("Specify columns explicitly rather than select all wildcard columns for indexing speed.");
-    if (sqlUpper.includes("WHERE") && !sqlUpper.includes("INDEX")) list.push("Add database index descriptors for filter columns specified inside the WHERE criteria.");
-    if (list.length === 0) list.push("Query structure adheres to standard performance parameters.");
-    return list;
-  })() : [];
-
-  const estimatedCost = result ? {
-    cpuCost: (result.impact.rowsAffected * 0.05 + 1.25).toFixed(2),
-    apiCost: "0.00045"
-  } : null;
-
-  const performanceMetrics = result ? {
-    latency: Math.floor(Math.random() * 38) + 8,
-    usesIndex: result.sql.toUpperCase().includes("WHERE") && !result.sql.toUpperCase().includes("LIKE")
-  } : null;
-
-  // Filter history logs based on navbar search
-  const filteredHistory = history.filter((item) =>
-    item.prompt.toLowerCase().includes(headerSearch.toLowerCase()) ||
-    item.sql_query.toLowerCase().includes(headerSearch.toLowerCase())
-  );
+  // Filter history logs based on navbar search (cleaned)
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-satoshi antialiased text-black overflow-hidden select-none">
       {/* 1. Fixed Header */}
       <Navbar
         backendOnline={backendOnline}
-        activeModel={activeModel}
-        setActiveModel={setActiveModel}
+        dbConnected={backendOnline && !schemaError}
         activeDatabase={activeDatabase}
-        setActiveDatabase={setActiveDatabase}
-        searchTerm={headerSearch}
-        setSearchTerm={setHeaderSearch}
+        isCustomDbActive={isCustomDbActive}
+        onConnect={handleConnectDb}
+        onDisconnect={handleDisconnectDb}
+        connectLoading={connectLoading}
+        connectError={connectError}
+        setConnectError={setConnectError}
+        authUser={user}
+        onLogout={handleLogout}
       />
+
+      {/* 0. Authentication Overlay */}
+      {!user && !isAuthLoading && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white border-4 border-black p-6 md:p-8 shadow-brutal text-black font-satoshi">
+            <div className="flex items-center gap-3 border-b-4 border-black pb-4 mb-6">
+              <div className="w-10 h-10 bg-brutalYellow border-2 border-black flex items-center justify-center shadow-brutal-sm">
+                <Zap className="w-5 h-5 text-black fill-current" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black uppercase tracking-tight">System Authentication</h2>
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-black/60">AI Query Sandbox Login</p>
+              </div>
+            </div>
+
+            {authError && (
+              <div className="p-3 bg-red-100 border-2 border-black text-red-950 font-bold text-xs uppercase shadow-brutal-sm mb-4">
+                {authError}
+              </div>
+            )}
+
+            {authSuccessMsg && (
+              <div className="p-3 bg-emerald-100 border-2 border-black text-emerald-950 font-bold text-xs uppercase shadow-brutal-sm mb-4">
+                {authSuccessMsg}
+              </div>
+            )}
+
+            <form onSubmit={authTab === "login" ? handleLoginSubmit : handleRegisterSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-extrabold uppercase tracking-wider block">Username</label>
+                <input
+                  type="text"
+                  required
+                  value={authUsername}
+                  onChange={(e) => setAuthUsername(e.target.value)}
+                  placeholder="enter username"
+                  className="w-full bg-white border-2 border-black p-3 text-xs font-bold focus:outline-none focus:bg-brutalYellow/10 shadow-inner"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-extrabold uppercase tracking-wider block">Password</label>
+                <input
+                  type="password"
+                  required
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-white border-2 border-black p-3 text-xs font-bold focus:outline-none focus:bg-brutalYellow/10 shadow-inner"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-black text-white hover:bg-brutalYellow hover:text-black border-2 border-black font-extrabold uppercase text-xs tracking-wider shadow-brutal-sm transition-all active:translate-y-0.5 mt-2"
+              >
+                {authTab === "login" ? "Login Session" : "Create Account"}
+              </button>
+            </form>
+
+            <div className="mt-6 border-t-2 border-black/10 pt-4 text-center">
+              <button
+                onClick={() => {
+                  setAuthTab(authTab === "login" ? "register" : "login");
+                  setAuthError(null);
+                  setAuthSuccessMsg("");
+                  setAuthPassword("");
+                }}
+                className="text-[11px] font-extrabold uppercase tracking-wider underline hover:text-brutalYellow-dark"
+              >
+                {authTab === "login" ? "Don't have an account? Register" : "Already have an account? Login"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Container beneath fixed header */}
       <div className="flex flex-grow h-[calc(100vh-80px)] mt-20 overflow-hidden">
         
         {/* 2. Left Sidebar */}
         <Sidebar
-          history={filteredHistory}
+          history={history}
           historyLoading={historyLoading}
           historyError={historyError}
-          backendOnline={backendOnline}
           onLoadHistoryItem={handleLoadFromHistory}
-          activeModel={activeModel}
-          activeDatabase={activeDatabase}
-          setActiveDatabase={setActiveDatabase}
         />
 
         {/* 3. Main content pane divided into scrollable area & bottom diagnostics drawer */}
         <div className="flex-grow flex flex-col overflow-hidden bg-white border-r-2 border-black">
           
-          {/* Branded Linear Slow scrolling Marquee Ticker */}
-          <div className="w-full bg-brutalCharcoal py-2 border-b-2 border-black overflow-hidden shrink-0 select-none">
-            <div className="animate-marquee font-cabinet text-[10px] font-extrabold uppercase tracking-widest text-brutalSage/60">
-              <span className="mx-4">MYSQL ENGINE ACTIVE •</span>
-              <span className="mx-4">TRANSLATING ENGLISH TO SQL •</span>
-              <span className="mx-4">GEMINI COGNITION PROTOCOLS ACTIVE •</span>
-              <span className="mx-4">QUERY PARSING ONLINE •</span>
-              <span className="mx-4">EXPLAIN GENERATION STABLE •</span>
-              <span className="mx-4">SAFETY THREAT ADVISORY SCANNING •</span>
-              <span className="mx-4">SCHEMA SYNC COMPLETED •</span>
-              <span className="mx-4">AUDIT LOGGING ACTIVE •</span>
-              
-              {/* Repeated for loop wrap marquee */}
-              <span className="mx-4">MYSQL ENGINE ACTIVE •</span>
-              <span className="mx-4">TRANSLATING ENGLISH TO SQL •</span>
-              <span className="mx-4">GEMINI COGNITION PROTOCOLS ACTIVE •</span>
-              <span className="mx-4">QUERY PARSING ONLINE •</span>
-              <span className="mx-4">EXPLAIN GENERATION STABLE •</span>
-              <span className="mx-4">SAFETY THREAT ADVISORY SCANNING •</span>
-              <span className="mx-4">SCHEMA SYNC COMPLETED •</span>
-              <span className="mx-4">AUDIT LOGGING ACTIVE •</span>
-            </div>
-          </div>
+          {/* Top marquee status bar (removed for simplicity) */}
 
           {/* Wrapper for scrollable editor and docked drawer */}
           <div className="flex-grow flex flex-col overflow-hidden relative">
@@ -503,7 +702,7 @@ export default function Home() {
                 <div className="p-5 bg-[#ffdada] border-2 border-black text-black shadow-brutal flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-extrabold uppercase text-xs">Translation Validation Failure</p>
+                    <p className="font-extrabold uppercase text-xs">AI Service Unavailable</p>
                     <p className="text-[12px] font-semibold mt-1 leading-relaxed text-black/85">{error}</p>
                   </div>
                 </div>
@@ -534,59 +733,16 @@ export default function Home() {
               </div>
 
               {/* 4-column Brutalist Footer inside scroll area */}
-              <footer className="bg-brutalCharcoal text-white border-2 border-black py-8 px-6 mt-10 select-none">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-6 text-[11px] font-semibold">
-                  <div className="space-y-1.5">
-                    <h4 className="text-brutalYellow font-extrabold uppercase tracking-wider text-[9px]">Product Sandbox</h4>
-                    <p className="text-[#b7c6c2] leading-relaxed">
-                      AI SQL Query Generator translating plain English to correct database scripts.
-                    </p>
-                    <p className="text-[9px] text-white/40">Sprint 14 Completed Redesign</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <h4 className="text-brutalYellow font-extrabold uppercase tracking-wider text-[9px]">Database Catalog</h4>
-                    <ul className="space-y-1 text-[#b7c6c2]">
-                      <li>MySQL Server v8.0</li>
-                      <li>INFORMATION_SCHEMA Reader</li>
-                      <li>EXPLAIN Query Analyzer</li>
-                    </ul>
-                  </div>
-                  <div className="space-y-1.5">
-                    <h4 className="text-brutalYellow font-extrabold uppercase tracking-wider text-[9px]">AI Integration</h4>
-                    <ul className="space-y-1 text-[#b7c6c2]">
-                      <li>Gemini 2.0 Flash (Default)</li>
-                      <li>Gemini 1.5 Pro (Deep)</li>
-                      <li>Google AI Studio APIs</li>
-                    </ul>
-                  </div>
-                  <div className="space-y-1.5">
-                    <h4 className="text-brutalYellow font-extrabold uppercase tracking-wider text-[9px]">System Diagnostics</h4>
-                    <ul className="space-y-1 text-[#b7c6c2]">
-                      <li>Security Threat Guard</li>
-                      <li>Index Suggestion Engine</li>
-                      <li>Transaction Cost Calculator</li>
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="border-t border-white/10 pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] font-semibold text-[#b7c6c2]">
-                  <p>© {new Date().getFullYear()} AI SQL Query Generator. Code Sandbox Dashboard Edition.</p>
-                  
-                  {/* 10x10 square icons turning Yellow/Black on hover */}
-                  <div className="flex gap-1.5 select-none">
-                    <a href="#github" className="w-8 h-8 bg-[#272f2a] border border-white/20 flex items-center justify-center text-white hover:bg-brutalYellow hover:text-black hover:border-black transition-colors" title="GitHub">
-                      <Github className="w-3.5 h-3.5" />
-                    </a>
-                    <a href="#twitter" className="w-8 h-8 bg-[#272f2a] border border-white/20 flex items-center justify-center text-white hover:bg-brutalYellow hover:text-black hover:border-black transition-colors" title="Twitter">
-                      <Twitter className="w-3.5 h-3.5" />
-                    </a>
-                    <a href="#linkedin" className="w-8 h-8 bg-[#272f2a] border border-white/20 flex items-center justify-center text-white hover:bg-brutalYellow hover:text-black hover:border-black transition-colors" title="LinkedIn">
-                      <Linkedin className="w-3.5 h-3.5" />
-                    </a>
-                    <a href="#facebook" className="w-8 h-8 bg-[#272f2a] border border-white/20 flex items-center justify-center text-white hover:bg-brutalYellow hover:text-black hover:border-black transition-colors" title="Facebook">
-                      <Facebook className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
+              <footer className="bg-white text-black border-t-2 border-black/10 py-6 px-4 mt-12 select-none flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold">
+                <p className="text-black/60 font-medium">
+                  © {new Date().getFullYear()} AI SQL Query Generator. Minimal Developer Edition.
+                </p>
+                <div className="flex gap-4 text-[11px] text-black/50">
+                  <span>Natural Language → SQL</span>
+                  <span>•</span>
+                  <span>Vite + React</span>
+                  <span>•</span>
+                  <span>MySQL Database</span>
                 </div>
               </footer>
             </main>
@@ -594,19 +750,6 @@ export default function Home() {
             {/* Collapsible bottom drawer locked at bottom of Middle Pane */}
             <BottomPanel
               executionLogs={executionLogs}
-              aiReasoning={
-                result
-                  ? `Optimized SQL generator query mapped active database catalog definitions.\n` +
-                    `- Target Tables identified: ${result.impact.tables.join(", ") || "none"}.\n` +
-                    `- Operations matched: ${result.sql.match(/SELECT|UPDATE|INSERT|DELETE/i)?.[0]?.toUpperCase() || "SELECT"}.\n` +
-                    `- Filtering criteria parsed: ${result.sql.includes("WHERE") ? "WHERE constraints loaded" : "None (All tables)"}.\n` +
-                    `- Risk assessment metrics loaded: ${result.impact.riskLevel} risk level based on write/read scan indices.`
-                  : ""
-              }
-              performanceMetrics={performanceMetrics}
-              securityAnalysis={securityAnalysis}
-              estimatedCost={estimatedCost}
-              suggestions={suggestions}
               isExpanded={isBottomDrawerExpanded}
               setIsExpanded={setIsBottomDrawerExpanded}
               activeTab={activeBottomTab}

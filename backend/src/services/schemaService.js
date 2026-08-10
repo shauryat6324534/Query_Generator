@@ -1,4 +1,4 @@
-import pool, { checkConnection } from "../database/db.js";
+import { getPoolForSession, getDatabaseNameForSession } from "../database/db.js";
 
 /**
  * Service to retrieve database schema (tables and columns) from MySQL.
@@ -7,19 +7,12 @@ import pool, { checkConnection } from "../database/db.js";
 
 /**
  * Fetches all tables and columns from the connected database.
+ * @param {string} [sessionId=null]
  * @returns {Promise<Array<{ tableName: string, columns: Array<{ columnName: string, dataType: string, isPrimaryKey: boolean, isNullable: boolean }> }>>}
  */
-export const getDatabaseSchema = async () => {
-  const databaseName = process.env.DB_NAME;
-
-  if (!databaseName) {
-    throw new Error(
-      "DB_NAME is not configured in the environment variables. Please check your backend/.env file."
-    );
-  }
-
-  // Ensure DB connection is active before querying
-  await checkConnection();
+export const getDatabaseSchema = async (sessionId = null) => {
+  const databaseName = getDatabaseNameForSession(sessionId);
+  const pool = getPoolForSession(sessionId);
 
   try {
     const query = `
@@ -63,3 +56,4 @@ export const getDatabaseSchema = async () => {
     throw new Error(`Database schema extraction failed: ${error.message}`);
   }
 };
+
