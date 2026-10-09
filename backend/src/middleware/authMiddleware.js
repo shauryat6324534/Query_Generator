@@ -26,7 +26,10 @@ export const authMiddleware = (req, res, next) => {
       return res.status(401).json({ error: "Access denied: User is unauthenticated." });
     }
 
-    const secret = process.env.JWT_SECRET || "fallback_default_jwt_secret_key_32_chars";
+    const secret = process.env.JWT_SECRET || (process.env.NODE_ENV === "production" ? undefined : "fallback_default_jwt_secret_key_32_chars");
+    if (!secret) {
+      return res.status(500).json({ error: "JWT_SECRET configuration is missing." });
+    }
     const decoded = verifyToken(token, secret);
 
     if (!decoded) {

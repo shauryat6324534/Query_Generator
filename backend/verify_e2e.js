@@ -48,6 +48,7 @@ async function executeE2ETests() {
   console.log("==================================================\n");
 
   const resultsSummary = {};
+  let sessionId = "";
 
   // 1. Register and Login to get session cookies
   console.log("[Test 1] Authentication E2E...");
@@ -78,6 +79,25 @@ async function executeE2ETests() {
     console.log(`- Login status: ${loginRes.statusCode}`);
     console.log(`- Cookies received: token (present), _csrf (present)`);
     console.log(`- SameSite check: ${loginRes.headers["set-cookie"]?.map(c => c.toLowerCase()).join(" | ")}`);
+    
+    // Call test-session route to create a session pool for queries
+    const sessionRes = await request("/auth/test-session", {
+      method: "POST",
+      headers: {
+        "Cookie": cookieHeader,
+        "X-CSRF-Token": csrfToken
+      }
+    });
+    
+    if (sessionRes.statusCode === 200) {
+      const sessionObj = sessionRes.json();
+      sessionId = sessionObj.sessionId;
+      console.log(`- Created test connection session ID: ${sessionId}`);
+    } else {
+      console.error(`- Failed to create test connection session: status ${sessionRes.statusCode}`);
+      resultsSummary.auth = "FAIL";
+    }
+
     console.log(`- Auth E2E Result: ${resultsSummary.auth}`);
   } catch (err) {
     console.error("Auth E2E crashed:", err);
@@ -179,7 +199,8 @@ async function executeE2ETests() {
         headers: {
           "Content-Type": "application/json",
           "Cookie": cookieHeader,
-          "X-CSRF-Token": csrfToken
+          "X-CSRF-Token": csrfToken,
+          "X-Session-ID": sessionId
         }
       }, { sql });
       const json = res.json();
@@ -195,7 +216,8 @@ async function executeE2ETests() {
       headers: {
         "Content-Type": "application/json",
         "Cookie": cookieHeader,
-        "X-CSRF-Token": csrfToken
+        "X-CSRF-Token": csrfToken,
+        "X-Session-ID": sessionId
       }
     }, { sql: "SELECT * FROM users WHERE id = 1;" });
     const safeJson = safeRes.json();
@@ -235,7 +257,8 @@ async function executeE2ETests() {
         headers: {
           "Content-Type": "application/json",
           "Cookie": cookieHeader,
-          "X-CSRF-Token": csrfToken
+          "X-CSRF-Token": csrfToken,
+          "X-Session-ID": sessionId
         }
       }, { prompt: p });
 
@@ -277,9 +300,9 @@ async function executeE2ETests() {
   console.log("\n[Test 6] Rapid Concurrency Generation Test...");
   try {
     const promises = [
-      request("/generate-query", { method: "POST", headers: { "Content-Type": "application/json", "Cookie": cookieHeader, "X-CSRF-Token": csrfToken } }, { prompt: "Query A" }),
-      request("/generate-query", { method: "POST", headers: { "Content-Type": "application/json", "Cookie": cookieHeader, "X-CSRF-Token": csrfToken } }, { prompt: "Query B" }),
-      request("/generate-query", { method: "POST", headers: { "Content-Type": "application/json", "Cookie": cookieHeader, "X-CSRF-Token": csrfToken } }, { prompt: "Query C" })
+      request("/generate-query", { method: "POST", headers: { "Content-Type": "application/json", "Cookie": cookieHeader, "X-CSRF-Token": csrfToken, "X-Session-ID": sessionId } }, { prompt: "Query A" }),
+      request("/generate-query", { method: "POST", headers: { "Content-Type": "application/json", "Cookie": cookieHeader, "X-CSRF-Token": csrfToken, "X-Session-ID": sessionId } }, { prompt: "Query B" }),
+      request("/generate-query", { method: "POST", headers: { "Content-Type": "application/json", "Cookie": cookieHeader, "X-CSRF-Token": csrfToken, "X-Session-ID": sessionId } }, { prompt: "Query C" })
     ];
 
     const responses = await Promise.all(promises);
@@ -289,6 +312,73 @@ async function executeE2ETests() {
   } catch (err) {
     console.error("Concurrency test crashed:", err);
     resultsSummary.concurrency = "FAIL";
+  }
+
+  // 7. Database Session Authorization Bypass Checks
+  console.log("\n[Test 7] Database Session Authorization Bypass Checks...");
+  try {
+    // A. Missing x-session-id
+    const missingSessionRes = await request("/execute-query", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookieHeader,
+        "X-CSRF-Token": csrfToken
+      }
+    }, { sql: "SELECT 1;" });
+    const isMissingSessionBlocked = missingSessionRes.statusCode === 400;
+    console.log(`- Missing session ID request status: ${missingSessionRes.statusCode} (Expected: 400)`);
+
+    // B. Invalid x-session-id
+    const invalidSessionRes = await request("/execute-query", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookieHeader,
+        "X-CSRF-Token": csrfToken,
+        "X-Session-ID": "invalid-session-uuid-format"
+      }
+    }, { sql: "SELECT 1;" });
+    const isInvalidSessionBlocked = invalidSessionRes.statusCode === 403;
+    console.log(`- Invalid session ID request status: ${invalidSessionRes.statusCode} (Expected: 403)`);
+
+    // C. User B trying to access User A's session ID
+    // Register User B
+    const userB = `tester_b_${crypto.randomBytes(4).toString("hex")}`;
+    const passB = "Password123!";
+    await request("/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    }, { username: userB, password: passB });
+    
+    // Login User B
+    const loginBRes = await request("/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    }, { username: userB, password: passB });
+
+    const cookiesB = parseSetCookie(loginBRes.headers);
+    const cookieHeaderB = `token=${cookiesB.token}; _csrf=${cookiesB._csrf}`;
+    const csrfTokenB = cookiesB._csrf;
+
+    // Call execute-query using User B's credentials but User A's sessionId
+    const crossUserRes = await request("/execute-query", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookieHeaderB,
+        "X-CSRF-Token": csrfTokenB,
+        "X-Session-ID": sessionId
+      }
+    }, { sql: "SELECT 1;" });
+    const isCrossUserBlocked = crossUserRes.statusCode === 403;
+    console.log(`- Cross-user session ID request status: ${crossUserRes.statusCode} (Expected: 403)`);
+
+    resultsSummary.sessionBypass = (isMissingSessionBlocked && isInvalidSessionBlocked && isCrossUserBlocked) ? "PASS" : "FAIL";
+    console.log(`- Session Bypass Checks Result: ${resultsSummary.sessionBypass}`);
+  } catch (err) {
+    console.error("Session bypass checks crashed:", err);
+    resultsSummary.sessionBypass = "FAIL";
   }
 
   console.log("\n==================================================");

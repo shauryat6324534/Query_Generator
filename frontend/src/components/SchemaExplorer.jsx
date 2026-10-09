@@ -97,6 +97,10 @@ export default function SchemaExplorer({ schema = [], loading, error, onRefresh,
             <p className="font-extrabold text-red-600">Dynamic Sync Interrupted</p>
             <p className="text-[10px] leading-relaxed text-black/75">{error}</p>
           </div>
+        ) : schema.length === 0 ? (
+          <div className="text-center py-20 text-xs font-semibold text-black/50 leading-relaxed px-4">
+            No database connected. Connect a database to view its schema catalog.
+          </div>
         ) : filteredSchema.length === 0 ? (
           <div className="text-center py-20 text-xs font-semibold text-black/50 italic">
             No tables matched criteria

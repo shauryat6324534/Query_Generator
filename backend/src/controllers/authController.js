@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { defaultPool } from "../database/db.js";
+import { defaultPool, sessionPools } from "../database/db.js";
 import { hashPassword, verifyPassword, signToken } from "../utils/cryptoUtils.js";
 
 const CREATE_USERS_TABLE = `
@@ -90,8 +90,10 @@ export const login = async (req, res) => {
       return res.status(401).json({ error: "Invalid username or password." });
     }
 
-    // Sign authentication token
-    const secret = process.env.JWT_SECRET || "fallback_default_jwt_secret_key_32_chars";
+    const secret = process.env.JWT_SECRET || (process.env.NODE_ENV === "production" ? undefined : "fallback_default_jwt_secret_key_32_chars");
+    if (!secret) {
+      return res.status(500).json({ error: "JWT_SECRET configuration is missing." });
+    }
     const token = signToken({ userId: user.id, username: user.username }, secret, 24 * 60 * 60);
 
     // Generate random CSRF token
@@ -162,3 +164,26 @@ export const me = (req, res) => {
     user: req.user
   });
 };
+
+/**
+ * Creates a mock/test database connection session mapped to the defaultPool.
+ * Only registered and enabled for non-production environments.
+ */
+export const testSession = (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(404).end();
+  }
+  
+  const userId = req.user.userId;
+  const sessionId = crypto.randomUUID();
+  
+  sessionPools.set(sessionId, {
+    pool: defaultPool,
+    lastActive: Date.now(),
+    database: "ai_sql_generator",
+    userId: userId
+  });
+  
+  return res.status(200).json({ sessionId, database: "ai_sql_generator" });
+};
+

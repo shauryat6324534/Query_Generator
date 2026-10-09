@@ -10,12 +10,13 @@ export const getSchema = async (req, res) => {
   const sessionId = req.headers["x-session-id"];
   const userId = req.user.userId;
 
-  // Verify session ownership if a dynamic session ID is supplied
-  if (sessionId) {
-    const session = getSessionEntry(sessionId);
-    if (!session || session.userId !== userId) {
-      return res.status(403).json({ error: "Access denied: Invalid database session or ownership mismatch." });
-    }
+  if (!sessionId) {
+    return res.status(400).json({ error: "Access denied: Session ID is required." });
+  }
+
+  const session = getSessionEntry(sessionId);
+  if (!session || session.userId !== userId) {
+    return res.status(403).json({ error: "Access denied: Invalid database session or ownership mismatch." });
   }
 
   try {

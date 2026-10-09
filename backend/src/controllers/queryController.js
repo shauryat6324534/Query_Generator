@@ -18,12 +18,13 @@ export const generateQuery = async (req, res) => {
       return res.status(400).json({ error: "Prompt is required" });
     }
 
-    // Verify session ownership if a dynamic session ID is supplied
-    if (sessionId) {
-      const session = getSessionEntry(sessionId);
-      if (!session || session.userId !== userId) {
-        return res.status(403).json({ error: "Access denied: Invalid database session or ownership mismatch." });
-      }
+    if (!sessionId) {
+      return res.status(400).json({ error: "Access denied: Session ID is required." });
+    }
+
+    const session = getSessionEntry(sessionId);
+    if (!session || session.userId !== userId) {
+      return res.status(403).json({ error: "Access denied: Invalid database session or ownership mismatch." });
     }
 
     const result = await generateSQL(prompt, sessionId);

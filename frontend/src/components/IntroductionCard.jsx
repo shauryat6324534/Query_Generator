@@ -16,7 +16,7 @@ export default function IntroductionCard({ onClose }) {
       <div className="space-y-2 pr-6">
         <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-white border-2 border-black text-[10px] font-extrabold uppercase tracking-wider shadow-brutal-sm">
           <Sparkles className="w-3.5 h-3.5 text-black fill-current animate-pulse" />
-          <span>AI SQL Query Workspace v2.0</span>
+          <span>AI SQL Query Workspace</span>
         </div>
         <h2 className="text-xl md:text-2xl font-extrabold text-black tracking-tighter uppercase">
           Build, optimize, and execute SQL in plain English.

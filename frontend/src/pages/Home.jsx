@@ -6,7 +6,6 @@ import IntroductionCard from "../components/IntroductionCard";
 import QueryInputCard from "../components/QueryInputCard";
 import ResultPanel from "../components/ResultPanel";
 import SchemaExplorer from "../components/SchemaExplorer";
-import BottomPanel from "../components/BottomPanel";
 import {
   generateQuery,
   explainQuery,
@@ -25,54 +24,7 @@ import {
   checkAuthUser
 } from "../services/api";
 
-const FALLBACK_SCHEMA = [
-  {
-    tableName: "employees",
-    columns: [
-      { columnName: "id", dataType: "int", isPrimaryKey: true, isNullable: false },
-      { columnName: "name", dataType: "varchar", isPrimaryKey: false, isNullable: false },
-      { columnName: "salary", dataType: "decimal", isPrimaryKey: false, isNullable: true },
-      { columnName: "department_id", dataType: "int", isPrimaryKey: false, isNullable: true },
-      { columnName: "hire_date", dataType: "date", isPrimaryKey: false, isNullable: true }
-    ]
-  },
-  {
-    tableName: "departments",
-    columns: [
-      { columnName: "id", dataType: "int", isPrimaryKey: true, isNullable: false },
-      { columnName: "name", dataType: "varchar", isPrimaryKey: false, isNullable: false },
-      { columnName: "manager_id", dataType: "int", isPrimaryKey: false, isNullable: true },
-      { columnName: "location", dataType: "varchar", isPrimaryKey: false, isNullable: true }
-    ]
-  },
-  {
-    tableName: "customers",
-    columns: [
-      { columnName: "id", dataType: "int", isPrimaryKey: true, isNullable: false },
-      { columnName: "name", dataType: "varchar", isPrimaryKey: false, isNullable: false },
-      { columnName: "email", dataType: "varchar", isPrimaryKey: false, isNullable: false },
-      { columnName: "registration_year", dataType: "int", isPrimaryKey: false, isNullable: true }
-    ]
-  },
-  {
-    tableName: "orders",
-    columns: [
-      { columnName: "id", dataType: "int", isPrimaryKey: true, isNullable: false },
-      { columnName: "customer_id", dataType: "int", isPrimaryKey: false, isNullable: false },
-      { columnName: "order_date", dataType: "date", isPrimaryKey: false, isNullable: false },
-      { columnName: "total_amount", dataType: "decimal", isPrimaryKey: false, isNullable: false }
-    ]
-  },
-  {
-    tableName: "logs",
-    columns: [
-      { columnName: "id", dataType: "int", isPrimaryKey: true, isNullable: false },
-      { columnName: "log_level", dataType: "varchar", isPrimaryKey: false, isNullable: false },
-      { columnName: "message", dataType: "text", isPrimaryKey: false, isNullable: false },
-      { columnName: "created_at", dataType: "timestamp", isPrimaryKey: false, isNullable: false }
-    ]
-  }
-];
+
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
@@ -81,9 +33,9 @@ export default function Home() {
   const [error, setError] = useState(null);
 
   // Database Connection Session states
-  const [sessionId, setSessionId] = useState(null);
-  const [activeDatabase, setActiveDatabase] = useState("ai_sql_generator");
-  const [isCustomDbActive, setIsCustomDbActive] = useState(false);
+  const [sessionId, setSessionId] = useState(() => localStorage.getItem("sessionId") || null);
+  const [activeDatabase, setActiveDatabase] = useState(() => localStorage.getItem("activeDatabase") || "ai_sql_generator");
+  const [isCustomDbActive, setIsCustomDbActive] = useState(() => localStorage.getItem("isCustomDbActive") === "true");
   const [connectLoading, setConnectLoading] = useState(false);
   const [connectError, setConnectError] = useState(null);
 
@@ -96,6 +48,9 @@ export default function Home() {
       setSessionId(data.sessionId);
       setActiveDatabase(data.database);
       setIsCustomDbActive(true);
+      localStorage.setItem("sessionId", data.sessionId);
+      localStorage.setItem("activeDatabase", data.database);
+      localStorage.setItem("isCustomDbActive", "true");
       addLog("success", `Successfully connected to custom database: "${data.database}"`);
       
       // Instantly load schema of the newly connected database
@@ -107,13 +62,13 @@ export default function Home() {
           setSchema(schemaData);
           addLog("info", `Fetched database schema catalog for "${data.database}". Detected ${schemaData.length} tables.`);
         } else {
-          setSchema(FALLBACK_SCHEMA);
+          setSchema([]);
           addLog("warning", `Schema catalog for "${data.database}" returned 0 tables.`);
         }
       } catch (schemaErr) {
         console.error("Failed to load schema details on connection switch:", schemaErr);
-        setSchema(FALLBACK_SCHEMA);
-        setSchemaError(`Failed to fetch schema details for ${data.database}`);
+        setSchema([]);
+        setSchemaError(`Failed to fetch schema details for ${data.database}: ${schemaErr.message}`);
       } finally {
         setSchemaLoading(false);
       }
@@ -142,25 +97,14 @@ export default function Home() {
     setSessionId(null);
     setActiveDatabase("ai_sql_generator");
     setIsCustomDbActive(false);
-    addLog("success", "Reverted to default database 'ai_sql_generator'.");
+    localStorage.removeItem("sessionId");
+    localStorage.removeItem("activeDatabase");
+    localStorage.removeItem("isCustomDbActive");
+    addLog("success", "Disconnected from custom database.");
     
-    // Refresh schema for default database
-    setSchemaLoading(true);
+    // Clear schema since we are in no-database connected state
+    setSchema([]);
     setSchemaError(null);
-    try {
-      const schemaData = await getSchema(null);
-      if (schemaData && schemaData.length > 0) {
-        setSchema(schemaData);
-        addLog("info", `Restored schema catalog for default database. Detected ${schemaData.length} tables.`);
-      } else {
-        setSchema(FALLBACK_SCHEMA);
-      }
-    } catch (err) {
-      setSchema(FALLBACK_SCHEMA);
-    } finally {
-      setSchemaLoading(false);
-    }
-
     fetchHistoryLogs();
   };
 
@@ -212,8 +156,6 @@ export default function Home() {
 
   // Workspace settings & drawer states
   const [showWelcome, setShowWelcome] = useState(true);
-  const [isBottomDrawerExpanded, setIsBottomDrawerExpanded] = useState(false);
-  const [activeBottomTab, setActiveBottomTab] = useState("logs");
 
   const addLog = (type, message) => {
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -235,6 +177,12 @@ export default function Home() {
   };
 
   const fetchSchemaDetails = async () => {
+    if (!sessionId) {
+      setSchema([]);
+      setSchemaError(null);
+      return;
+    }
+
     setSchemaLoading(true);
     setSchemaError(null);
     try {
@@ -243,14 +191,28 @@ export default function Home() {
         setSchema(data);
         addLog("info", `Fetched database schema catalog. Detected ${data.length} tables.`);
       } else {
-        setSchema(FALLBACK_SCHEMA);
-        addLog("info", "Database catalog returned 0 tables. Loaded workspace sandbox tables.");
+        setSchema([]);
+        setSchemaError("Database catalog returned 0 tables.");
+        addLog("warning", "Database catalog returned 0 tables.");
       }
     } catch (err) {
       console.error("Failed to fetch schema details:", err);
-      setSchema(FALLBACK_SCHEMA);
-      setSchemaError("Database not running or not configured. Loaded default sandbox tables.");
-      addLog("warning", "Database schema sync failed. Falling back to default workspace sandbox tables.");
+      setSchema([]);
+      
+      // Check if the session is invalid or expired
+      if (err.message && (err.message.includes("403") || err.message.includes("400"))) {
+        setSchemaError("Database session expired or invalid. Please reconnect.");
+        addLog("error", "Database connection session is invalid or has expired.");
+        
+        // Clean up invalid session states
+        setSessionId(null);
+        setIsCustomDbActive(false);
+        localStorage.removeItem("sessionId");
+        localStorage.removeItem("isCustomDbActive");
+      } else {
+        setSchemaError(err.message || "Failed to sync database schema.");
+        addLog("error", `Database schema sync failed: ${err.message}`);
+      }
     } finally {
       setSchemaLoading(false);
     }
@@ -585,7 +547,7 @@ export default function Home() {
               </div>
               <div>
                 <h2 className="text-xl font-black uppercase tracking-tight">System Authentication</h2>
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-black/60">AI Query Sandbox Login</p>
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-black/60">AI SQL Query Workspace Login</p>
               </div>
             </div>
 
@@ -747,14 +709,6 @@ export default function Home() {
               </footer>
             </main>
 
-            {/* Collapsible bottom drawer locked at bottom of Middle Pane */}
-            <BottomPanel
-              executionLogs={executionLogs}
-              isExpanded={isBottomDrawerExpanded}
-              setIsExpanded={setIsBottomDrawerExpanded}
-              activeTab={activeBottomTab}
-              setActiveTab={setActiveBottomTab}
-            />
           </div>
 
         </div>

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { register, login, logout, me } from "../controllers/authController.js";
+import { register, login, logout, me, testSession } from "../controllers/authController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { strictLimiter } from "../middleware/rateLimiter.js";
 
@@ -12,5 +12,10 @@ router.post("/logout", logout);
 
 // GET /auth/me returns current session user info
 router.get("/me", authMiddleware, me);
+
+// Mount test session builder for development/testing environments
+if (process.env.NODE_ENV !== "production") {
+  router.post("/test-session", authMiddleware, testSession);
+}
 
 export default router;

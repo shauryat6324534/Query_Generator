@@ -19,9 +19,15 @@ import { authMiddleware } from "./middleware/authMiddleware.js";
 import { csrfMiddleware } from "./middleware/csrfMiddleware.js";
 import { generalLimiter, strictLimiter } from "./middleware/rateLimiter.js";
 import { validateAndResolveHost } from "./utils/ssrfValidator.js";
+import { validatePort } from "./utils/portValidator.js";
 
 // Load environment variables
 dotenv.config();
+
+if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
+  console.error("Fatal: JWT_SECRET environment variable is required in production.");
+  process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -73,6 +79,8 @@ const translateConnectionError = (error) => {
   return `Connection failed: ${message}`;
 };
 
+
+
 // Unprotected API routes (Auth & Health)
 app.use("/auth", authRouter);
 app.use("/health", healthRouter);
@@ -87,6 +95,13 @@ app.post("/database/connect", authMiddleware, strictLimiter, async (req, res) =>
 
   if (!host || !user || !database) {
     return res.status(400).json({ error: "Host, User, and Database Name are required." });
+  }
+
+  // Validate port if provided
+  try {
+    validatePort(port);
+  } catch (portErr) {
+    return res.status(400).json({ error: portErr.message });
   }
 
   // SSRF DNS resolution and validation
@@ -116,6 +131,13 @@ app.post("/database/test", authMiddleware, strictLimiter, async (req, res) => {
   
   if (!host || !user || !database) {
     return res.status(400).json({ error: "Host, User, and Database Name are required." });
+  }
+
+  // Validate port if provided
+  try {
+    validatePort(port);
+  } catch (portErr) {
+    return res.status(400).json({ error: portErr.message });
   }
 
   // SSRF DNS resolution and validation

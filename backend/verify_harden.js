@@ -1,6 +1,7 @@
 import { hashPassword, verifyPassword, signToken, verifyToken } from "./src/utils/cryptoUtils.js";
 import { validateAndResolveHost } from "./src/utils/ssrfValidator.js";
 import { validateSQLSafety } from "./src/utils/sqlSafety.js";
+import { validatePort } from "./src/utils/portValidator.js";
 
 async function runTests() {
   console.log("=== SECURITY HARDENING INTEGRITY TEST MATRIX ===\n");
@@ -61,6 +62,10 @@ async function runTests() {
     { host: "192.168.1.100", expectedBlocked: true },
     { host: "169.254.169.254", expectedBlocked: true },
     { host: "::1", expectedBlocked: true },
+    { host: "::ffff:127.0.0.1", expectedBlocked: true },
+    { host: "::ffff:10.0.0.1", expectedBlocked: true },
+    { host: "::ffff:192.168.1.1", expectedBlocked: true },
+    { host: "::ffff:169.254.169.254", expectedBlocked: true },
     { host: "google.com", expectedBlocked: false }
   ];
 
@@ -107,6 +112,30 @@ async function runTests() {
       assert(`SQL Safety - query '${tc.sql}' is Allowed`, !tc.expectedBlocked);
     } catch (err) {
       assert(`SQL Safety - query '${tc.sql}' is Blocked (${err.message})`, tc.expectedBlocked);
+    }
+  }
+
+  // 5. Database Port Validation checks
+  const portCases = [
+    { port: 3306, expectedValid: true },
+    { port: "3306", expectedValid: true },
+    { port: "", expectedValid: true },
+    { port: null, expectedValid: true },
+    { port: undefined, expectedValid: true },
+    { port: 0, expectedValid: false },
+    { port: -1, expectedValid: false },
+    { port: 65536, expectedValid: false },
+    { port: 99999, expectedValid: false },
+    { port: 1.5, expectedValid: false },
+    { port: "abc", expectedValid: false }
+  ];
+
+  for (const tc of portCases) {
+    try {
+      validatePort(tc.port);
+      assert(`Port Validation - port '${tc.port}' is Allowed`, tc.expectedValid);
+    } catch (err) {
+      assert(`Port Validation - port '${tc.port}' is Blocked (${err.message})`, !tc.expectedValid);
     }
   }
 

@@ -1,29 +1,6 @@
 import React from "react";
 import { Sparkles, Loader2, Play, HelpCircle, ShieldAlert, Zap, XCircle } from "lucide-react";
 
-const QUICK_EXAMPLES = [
-  {
-    id: "salary",
-    label: "Employee Salaries",
-    prompt: "Show all employees whose salary is greater than 50000",
-  },
-  {
-    id: "sales",
-    label: "Product Sales",
-    prompt: "Get the total sales for each product in the last 30 days",
-  },
-  {
-    id: "inactive",
-    label: "Inactive Customers",
-    prompt: "Find customers who registered in 2025 but haven't placed any orders",
-  },
-  {
-    id: "departments",
-    label: "Top Departments",
-    prompt: "Calculate the average department rating, group by department name, having average rating > 4.5",
-  }
-];
-
 export default function QueryInputCard({
   prompt,
   setPrompt,
@@ -39,11 +16,6 @@ export default function QueryInputCard({
   optimizeLoading
 }) {
   const maxChars = 500;
-
-  const handleChipClick = (examplePrompt) => {
-    if (isLoading || explainLoading || validateLoading || optimizeLoading) return;
-    setPrompt(examplePrompt);
-  };
 
   const handleTextareaChange = (e) => {
     if (e.target.value.length <= maxChars) {
@@ -86,28 +58,6 @@ export default function QueryInputCard({
             placeholder="e.g. Show all active customers who purchased a premium subscription in the last quarter..."
             className="w-full bg-white border-2 border-black text-black placeholder-black/50 p-5 text-base font-medium leading-relaxed focus:outline-none focus:bg-brutalYellow/10 transition-colors resize-y disabled:opacity-60 disabled:cursor-not-allowed shadow-inner"
           />
-        </div>
-
-        {/* Quick templates section */}
-        <div className="space-y-3">
-          <h3 className="text-[10px] font-extrabold text-black/60 uppercase tracking-widest pl-0.5">Quick Prompt Templates</h3>
-          <div className="flex flex-wrap gap-2.5">
-            {QUICK_EXAMPLES.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleChipClick(item.prompt)}
-                disabled={isLoading || explainLoading || validateLoading || optimizeLoading}
-                className={`py-2 px-3.5 border-2 border-black text-xs font-extrabold transition-all shadow-brutal-sm ${
-                  prompt === item.prompt
-                    ? "bg-brutalYellow text-black translate-x-0.5 translate-y-0.5 shadow-brutal-sm"
-                    : "bg-white text-black hover:bg-brutalSage"
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Control Action Buttons Row */}

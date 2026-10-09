@@ -84,12 +84,9 @@ export default function Navbar({
         <div>
           <h1 className="text-xl md:text-2xl font-extrabold text-black uppercase tracking-tight flex items-center gap-1.5">
             AI SQL Query Generator
-            <span className="text-[9px] font-extrabold px-1.5 py-0.5 bg-black text-brutalYellow border border-black rounded-none hidden md:inline">
-              v1.0
-            </span>
           </h1>
           <p className="text-[9px] font-bold text-black uppercase tracking-widest leading-none mt-0.5 opacity-70">
-            Neo-Brutalist Query Sandbox
+            AI SQL Query Workspace
           </p>
         </div>
       </div>

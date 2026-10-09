@@ -7,6 +7,15 @@ import dns from "dns/promises";
  */
 const isPrivateIp = (ip) => {
   if (!ip) return true;
+
+  // Normalize IPv4-mapped IPv6 addresses (e.g. ::ffff:127.0.0.1)
+  let cleanIp = ip.trim().toLowerCase();
+  if (cleanIp.startsWith("::ffff:")) {
+    const ipv4Candidate = ip.trim().substring(7);
+    if (ipv4Candidate.split(".").length === 4) {
+      ip = ipv4Candidate;
+    }
+  }
   
   // 1. Loopback addresses
   if (ip === "127.0.0.1" || ip === "::1" || ip.startsWith("127.")) {
