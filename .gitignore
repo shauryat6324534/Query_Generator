@@ -3,3 +3,7 @@ backend/.env
 .env.*
 !.env.example
 backend/data/
+
+backend/node_modules/
+backend/*.js
+!backend/server.js
