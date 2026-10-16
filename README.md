@@ -1,175 +1,149 @@
 # AI SQL Query Generator
 
-## Overview
+## About the Project
 
-AI SQL Query Generator is a web application that converts natural language requirements into SQL queries.
+AI SQL Query Generator is a web application that helps users convert simple English instructions into SQL queries. Instead of writing SQL manually, users can describe what data they want, and the application uses an AI model to generate the query.
 
-The system uses Gemini AI to understand user intent, generate SQL statements, explain generated queries, estimate query impact, execute selected queries, maintain history, and export results.
+The project uses the OpenRouter API to access AI models for SQL generation, query explanation, and query analysis. It also supports connecting to a MySQL database, viewing its schema, executing queries, maintaining query history, and exporting results.
 
----
-
-## Current Status
-
-### Completed
-
-* SQL Generation
-* Query Explanation
-* Database Schema Reader
-* Query Impact Analysis
-* Query Execution Service
-* Query History Service
-* CSV Export Service
-
-### In Progress
-
-* Backend API Integration
-* SQL Validation
-* Frontend ↔ Backend Integration
-* Dashboard UI Redesign
-
----
+The main goal of this project is to make database operations easier and more accessible, especially for users who have limited knowledge of SQL.
 
 ## Features
 
-### SQL Generation
-
-Convert natural language into SQL.
-
-### Query Explanation
-
-Explain generated SQL in simple language.
-
-### Database Schema Understanding
-
-Read tables and columns from the connected database.
-
-### Query Impact Analysis
-
-Estimate:
-
-* Rows returned
-* Rows affected
-* Potential risks
-
-### Query Execution
-
-Execute generated SQL against MySQL.
-
-### Query History
-
-Store prompts and generated SQL.
-
-### CSV Export
-
-Convert query results into CSV format.
-
-### Planned
-
-#### SQL Validation
-
-Validate generated SQL before execution.
-
-#### Frontend API Integration
-
-Connect React frontend with backend services.
-
-#### Dashboard UI
-
-Modern SaaS-style responsive interface.
-
----
-
-## Architecture
-
-User
-↓
-Frontend
-↓
-Backend API
-↓
-Controllers
-↓
-Services
-↓
-Database + Gemini
-
----
-
-## Backend Services
-
-Implemented:
-
-* geminiService.js
-* schemaService.js
-* explanationService.js
-* impactService.js
-* executionService.js
-* historyService.js
-* exportService.js
-
-Planned:
-
-* validationService.js
-
----
-
-## Sprint Status
-
-Sprint 1  ✅ Project Setup
-
-Sprint 2  ✅ Frontend UI Prototype
-
-Sprint 3  ✅ Backend API Foundation
-
-Sprint 4  ✅ Gemini Integration
-
-Sprint 5  ✅ Schema Reader
-
-Sprint 6  ✅ Query Explanation
-
-Sprint 7  ✅ Impact Analysis
-
-Sprint 8  ✅ Query Execution
-
-Sprint 9  ✅ Query History Service
-
-Sprint 10 ✅ CSV Export Service
-
-Sprint 11 ✅ Backend Integration
-
-Sprint 12 ⏳ SQL Validation
-
-Sprint 13 ✅ Frontend Integration
-
-Sprint 14 ✅ Dashboard UI
-
----
+- **AI SQL Generation:** Convert natural language instructions into SQL queries.
+- **Query Explanation:** Understand how a generated SQL query works through step-by-step explanations.
+- **Database Connection:** Connect to a MySQL database using database connection details.
+- **Schema Explorer:** Retrieve table and column information from the connected database to help generate relevant queries.
+- **Query Impact Analysis:** Analyze queries to identify possible risks and estimate their impact.
+- **Query Execution:** Execute queries against the connected MySQL database.
+- **Query History:** Maintain a history of queries and related user prompts.
+- **CSV Export:** Export query results in CSV format.
+- **Query Optimization:** Provide an API endpoint for query optimization.
+- **Authentication and Security:** Includes authentication middleware, CSRF protection, request rate limiting, and SQL safety utilities.
 
 ## Tech Stack
 
-Frontend
+### Frontend
+- React
+- Vite
+- Tailwind CSS
+- Lucide React
 
-* React
-* Vite
-* TailwindCSS
+### Backend
+- Node.js
+- Express.js
+- ES Modules
 
-Backend
+### Database
+- MySQL
+- mysql2
 
-* Node.js
-* Express.js
+### AI Integration
+- OpenRouter API
+- OpenAI JavaScript SDK
+- Configurable AI model through environment variables
 
-Database
+### Other Tools
+- dotenv for environment configuration
+- Nodemon for backend development
+- UUID for unique identifiers
 
-* MySQL
+## How It Works
 
-AI
+1. The user enters a requirement in natural language.
+2. The React frontend sends a request to the Express backend.
+3. The backend uses the configured AI provider to generate the SQL query.
+4. Database schema information can be included as context to help the AI generate a query that matches the available tables and columns.
+5. The user can request an explanation or impact analysis of the query.
+6. The backend provides query execution and result export functionality.
+7. Query history can be accessed through the application's API.
 
-* Gemini API
+## Project Architecture
 
----
+```text
+React Frontend
+      |
+      v
+Express.js Backend
+      |
+      v
+Middleware and API Routes
+      |
+      v
+Controllers
+      |
+      v
+Services
+      |
+      +---- AI Provider
+      |        |
+      |        v
+      |     OpenRouter API
+      |
+      +---- MySQL Database
+      |
+      +---- Query History
+      |
+      +---- CSV Export
+```
 
-## Authors
+## Backend Structure
 
-B.Tech CSE Major Project
+The backend is organized into separate folders to keep different responsibilities manageable.
 
-AI SQL Query Generator
+- `controllers/` – Handles incoming API requests and responses.
+- `routes/` – Defines API endpoints for authentication, queries, execution, schema, history, and other features.
+- `services/` – Contains the main application logic for AI operations, database schema retrieval, query execution, history, and exports.
+- `providers/` – Defines the AI provider interface and OpenRouter implementation.
+- `middleware/` – Contains authentication, CSRF protection, and rate-limiting logic.
+- `database/` – Contains database connection and database-related configuration.
+- `utils/` – Contains helper functions for AI error handling, SQL safety, host validation, and other utilities.
+
+## Security Features
+
+The project includes several security-related components:
+
+- Authentication middleware for protecting relevant endpoints.
+- CSRF protection for state-changing requests.
+- Rate limiting to restrict excessive API requests.
+- SQL safety utilities to help identify or prevent unsafe query operations.
+- Host validation utilities for database connection handling.
+- Environment variables for storing API keys and database configuration outside the main source code.
+
+## Running the Project
+
+### Backend
+
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+### Frontend
+
+Open another terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Configure the required environment variables in `backend/.env` before starting the application. These include the OpenRouter API key, model name, and MySQL database settings.
+
+## Future Improvements
+
+- Improve SQL validation before query execution.
+- Strengthen safeguards for queries that modify or delete data.
+- Improve error handling for AI responses and database connections.
+- Add more testing for complete frontend-to-backend workflows.
+- Continue improving the dashboard and overall user experience.
+
+## Project Information
+
+**Project Name:** AI SQL Query Generator
+
+**Project Type:** B.Tech CSE Major Project
+
+**Purpose:** To simplify SQL generation and database interaction using AI.

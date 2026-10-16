@@ -7,3 +7,6 @@ backend/data/
 backend/node_modules/
 backend/*.js
 !backend/server.js
+
+frontend/node_modules/
+frontend/dist/
